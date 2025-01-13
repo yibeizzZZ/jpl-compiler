@@ -3,3 +3,4 @@ a.out
 *.class
 *.o
 rt/
+grader/

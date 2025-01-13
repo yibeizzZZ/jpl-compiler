@@ -1,0 +1,8 @@
+read image "sample.png" to sample_image [ H_image, W_image ]
+
+fn invert(p: rgba) : rgba {
+    return rgba {1.0 - p.r, 1.0 - p.g, 1.0 - p.b, p.a}
+}
+
+time let inverted_image = array[i : H_image, j : W_image] invert(sample_image[i,j])
+write image inverted_image to "sample-inverted.png"

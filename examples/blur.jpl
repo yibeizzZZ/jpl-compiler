@@ -1,0 +1,85 @@
+read image "sample.png" to sample_image[H_image, W_image]
+
+fn blur(i: int, j: int, W: int, H: int) : rgba {
+    let sum_r =\
+        (if i > 0 && j > 0 then sample_image[i-1,j-1].r else 0.0) +\
+        (if i > 0 then sample_image[i-1,j].r else 0.0) +\
+        (if i > 0 && j < W-1 then sample_image[i-1,j+1].r else 0.0) +\
+        (if j > 0 then sample_image[i,j-1].r else 0.0) +\
+        sample_image[i,j].r +\
+        (if j < W-1 then sample_image[i,j+1].r else 0.0) +\
+        (if i < H-1 && j > 0 then sample_image[i+1,j-1].r else 0.0) +\
+        (if i < H-1 then sample_image[i+1,j].r else 0.0) +\
+        (if i < H-1 && j < W-1 then sample_image[i+1,j+1].r else 0.0)
+
+    let count_r =\
+        (if i > 0 && j > 0 then 1 else 0) +\
+        (if i > 0 then 1 else 0) +\
+        (if i > 0 && j < W-1 then 1 else 0) +\
+        (if j > 0 then 1 else 0) +\
+        1 +\
+        (if j < W-1 then 1 else 0) +\
+        (if i < H-1 && j > 0 then 1 else 0) +\
+        (if i < H-1 then 1 else 0) +\
+        (if i < H-1 && j < W-1 then 1 else 0)
+
+    let avg_r = sum_r / to_float(count_r)
+    let new_r = if avg_r > 1.0 then 1.0 else avg_r
+
+    let sum_g =\
+        (if i > 0 && j > 0 then sample_image[i-1,j-1].g else 0.0) +\
+        (if i > 0 then sample_image[i-1,j].g else 0.0) +\
+        (if i > 0 && j < W-1 then sample_image[i-1,j+1].g else 0.0) +\
+        (if j > 0 then sample_image[i,j-1].g else 0.0) +\
+        sample_image[i,j].g +\
+        (if j < W-1 then sample_image[i,j+1].g else 0.0) +\
+        (if i < H-1 && j > 0 then sample_image[i+1,j-1].g else 0.0) +\
+        (if i < H-1 then sample_image[i+1,j].g else 0.0) +\
+        (if i < H-1 && j < W-1 then sample_image[i+1,j+1].g else 0.0)
+
+    let count_g =\
+        (if i > 0 && j > 0 then 1 else 0) +\
+        (if i > 0 then 1 else 0) +\
+        (if i > 0 && j < W-1 then 1 else 0) +\
+        (if j > 0 then 1 else 0) +\
+        1 +\
+        (if j < W-1 then 1 else 0) +\
+        (if i < H-1 && j > 0 then 1 else 0) +\
+        (if i < H-1 then 1 else 0) +\
+        (if i < H-1 && j < W-1 then 1 else 0)
+
+    let avg_g = sum_g / to_float(count_g)
+    let new_g = if avg_g > 1.0 then 1.0 else avg_g
+
+    let sum_b =\
+        (if i > 0 && j > 0 then sample_image[i-1,j-1].b else 0.0) +\
+        (if i > 0 then sample_image[i-1,j].b else 0.0) +\
+        (if i > 0 && j < W-1 then sample_image[i-1,j+1].b else 0.0) +\
+        (if j > 0 then sample_image[i,j-1].b else 0.0) +\
+        sample_image[i,j].b +\
+        (if j < W-1 then sample_image[i,j+1].b else 0.0) +\
+        (if i < H-1 && j > 0 then sample_image[i+1,j-1].b else 0.0) +\
+        (if i < H-1 then sample_image[i+1,j].b else 0.0) +\
+        (if i < H-1 && j < W-1 then sample_image[i+1,j+1].b else 0.0)
+
+    let count_b =\
+        (if i > 0 && j > 0 then 1 else 0) +\
+        (if i > 0 then 1 else 0) +\
+        (if i > 0 && j < W-1 then 1 else 0) +\
+        (if j > 0 then 1 else 0) +\
+        1 +\
+        (if j < W-1 then 1 else 0) +\
+        (if i < H-1 && j > 0 then 1 else 0) +\
+        (if i < H-1 then 1 else 0) +\
+        (if i < H-1 && j < W-1 then 1 else 0)
+
+    let avg_b = sum_b / to_float(count_b)
+    let new_b = if avg_b > 1.0 then 1.0 else avg_b
+
+    let new_a = sample_image[i,j].a
+
+    return rgba { new_r, new_g, new_b, new_a }
+}
+
+time let sepia_image = array[i : H_image, j : W_image] blur(i,j,W_image,H_image)
+write image sepia_image to "sample-blurry.png"

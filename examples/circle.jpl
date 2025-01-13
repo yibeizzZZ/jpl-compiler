@@ -1,0 +1,19 @@
+/* This generates a white, unfilled circle in the center of a black 800x600 image */
+
+let W_image = 800
+let H_image = 600
+let rad = 400.0
+let width = 10.0
+
+fn circle(i: int, j: int, W: int, H: int) : rgba {
+    let cx = to_float(W) / 2.0
+    let cy = to_float(H) / 2.0
+    let dx = to_float(j) - cx
+    let dy = to_float(i) - cy
+    let distance = sqrt(dx * dx + dy * dy)
+    let is_edge = distance >= (rad - width / 2.0) && distance <= (rad + width / 2.0)
+    return if is_edge then rgba {1.0, 1.0, 1.0, 1.0} else rgba {0.0, 0.0, 0.0, 1.0}
+}
+
+time let circle_image = array[i : H_image, j : W_image] circle(i, j, W_image, H_image)
+write image circle_image to "circle.png"

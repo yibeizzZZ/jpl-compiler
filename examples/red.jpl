@@ -1,0 +1,15 @@
+/* This generates a solid red image */
+
+fn red(i : int, j : int, W : int, H : int) : rgba {
+    return rgba { \
+        1.0, \
+        0.0, \
+        0.0, \
+        1.0 \
+    }
+}
+
+let W = 800
+let H = 600
+time let red_image = array[i : H, j : W] red(i, j, W, H)
+write image red_image to "red.png"

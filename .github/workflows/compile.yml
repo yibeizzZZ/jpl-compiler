@@ -1,0 +1,44 @@
+name: Auto-grades your solution
+
+on: push
+
+jobs:
+  compiles:
+    name: "Runs `make compile`"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@master
+      - run: make compile
+  parts:
+    name: "Grades assignment"
+    runs-on: ubuntu-24.04
+    needs: [compiles]
+    strategy:
+      fail-fast: false
+      matrix:
+        part: [ 1, 2, 3, 4, 5, 6 ]
+    steps:
+      - uses: actions/checkout@master
+      - run: make compile
+      - name: "Downloads grader scripts"
+        uses: actions/checkout@master
+        with:
+          repository: utah-cs4470-sp25/grader
+          path: grader
+      - name: "Download runtime"
+        uses: actions/checkout@master
+        with:
+          repository: utah-cs4470-sp25/runtime
+          path: rt
+          ref: linux
+      - run: sudo apt-get install -y nasm
+      - name: "Compile runtime"
+        run: (cd rt; make)
+      - name: "Counts total parts"
+        run: echo HW_PARTS=$(make -s -C grader count-current) >> $GITHUB_ENV; echo $HW_PARTS
+      - name: Total of ${{ env.HW_PARTS }} parts
+        run: true
+      - name: Grade part ${{ matrix.part }}
+        if: matrix.part <= env.HW_PARTS
+        timeout-minutes: 10
+        run: make -C grader test-current DIR=$GITHUB_WORKSPACE PART=${{ matrix.part }}

@@ -1,170 +1,201 @@
 
 from typing import List, Tuple
 from dataclasses import dataclass
+
 @dataclass
 class Token:
     start_idx: int
 
-'''
-这里是标点符号类型
-'''
+# 标点符号
 @dataclass
 class Punctuation(Token):
     pass
-@dataclass
-class COLON(Punctuation):
-    pass
-@dataclass
-class COMMA(Punctuation):
-    pass
-@dataclass
-class DOT(Punctuation):
-    pass
-@dataclass
-class LCURLY(Punctuation):
-    pass
-@dataclass
-class RCURLY(Punctuation):
-    pass
-@dataclass
-class LPAREN(Punctuation):
-    pass
-@dataclass
-class RPAREN(Punctuation):
-    pass
+
 @dataclass
 class LSQUARE(Punctuation):
     pass
+
 @dataclass
 class RSQUARE(Punctuation):
     pass
-'''
-这里是Operator 存运算符
-'''
+
+@dataclass
+class LCURLY(Punctuation):
+    pass
+
+@dataclass
+class RCURLY(Punctuation):
+    pass
+
+@dataclass
+class LPAREN(Punctuation):
+    pass
+
+@dataclass
+class RPAREN(Punctuation):
+    pass
+
+@dataclass
+class COMMA(Punctuation):
+    pass
+
+@dataclass
+class COLON(Punctuation):
+    pass
+
+@dataclass
+class DOT(Punctuation):
+    pass
+
+# 运算符
 @dataclass
 class Operator(Token):
     pass
+
 @dataclass
 class OP(Operator):
-    pass
+    symbol: str
+
 @dataclass
 class EQUALS(Operator):
     pass
-'''
-这里是Special 
-'''
+
+# 特殊 Token
 @dataclass
 class Special(Token):
     pass
+
 @dataclass
 class NEWLINE(Special):
     pass
+
 @dataclass
 class END_OF_FILE(Special):
     pass
-'''
-这里是DatKeyworda，用来定义后面的东西或实现某些东西
-'''
+
+# 关键字
 @dataclass
 class Keyword(Token):
     pass
+
 @dataclass
 class ASSERT(Keyword):
     pass
+
 @dataclass
 class ELSE(Keyword):
     pass
+
 @dataclass
 class FALSE(Keyword):
     pass
+
 @dataclass
 class FN(Keyword):
     pass
+
 @dataclass
 class IF(Keyword):
     pass
+
 @dataclass
 class LET(Keyword):
     pass
+
 @dataclass
 class PRINT(Keyword):
     pass
+
 @dataclass
 class READ(Keyword):
     pass
+
 @dataclass
 class RETURN(Keyword):
     pass
+
 @dataclass
 class SHOW(Keyword):
     pass
+
 @dataclass
 class SUM(Keyword):
     pass
+
 @dataclass
 class THEN(Keyword):
     pass
+
 @dataclass
 class TIME(Keyword):
     pass
+
 @dataclass
 class TO(Keyword):
     pass
+
 @dataclass
 class TRUE(Keyword):
     pass
+
 @dataclass
 class VOID(Keyword):
     pass
+
 @dataclass
 class WRITE(Keyword):
     pass
 
-'''
-这里是datatype
-'''
+# 数据类型
 @dataclass
 class Datatype(Token):
     pass
+
 @dataclass
 class ARRAY(Datatype):
     pass
+
 @dataclass
 class BOOL(Datatype):
     pass
+
 @dataclass
 class FLOAT(Datatype):
     pass    
+
 @dataclass
 class IMAGE(Datatype):
     pass
+
 @dataclass
 class INT(Datatype):
     pass
+
 @dataclass
 class STRUCT(Datatype):
     pass
 
-'''
-这里是Literal 这些 Token 需要存储具体数值或字符串
-'''
+# 字面量
 @dataclass
 class Literal(Token):
     pass
+
 @dataclass
 class INTVAL(Literal):
-    value: int = 0
+    value: int
+
 @dataclass
 class FLOATVAL(Literal):
-    value: float = 0.0
+    value: float
+
 @dataclass
 class STRING(Literal):
-    value: str = ""
+    value: str
 
-"""表示用户定义的标识符"""
+# 变量名
 @dataclass
 class VARIABLE(Token):
-    name: str = ""
+    name: str
 
 
 '''
@@ -295,7 +326,7 @@ def lex(source: str) -> List[Token]:
             curr_index += 1
             continue
 
-        # 2. 处理换行符(这里简单处理\n => NEWLINE)
+        # 2. 处理换行符(保留 had_content 逻辑)
         if ch == '\n':
             if had_content:
                 tokens.append(NEWLINE(curr_index))
@@ -303,15 +334,15 @@ def lex(source: str) -> List[Token]:
             had_content = False
             continue
         had_content = True
-        # 3.跳过 "//" 直到换行或EOF
+
+        # 3. 跳过 "//" 直到换行或EOF
         if ch == '/' and curr_index + 1 < length and source[curr_index + 1] == '/':
-        # 跳过 "//" 到行尾
+            # 跳过 "//" 到行尾
             curr_index += 2
             while curr_index < length and source[curr_index] != '\n':
                 curr_index += 1
-            
             continue
-        
+
         # 4. 处理方括号 [ / ]
         if ch == '[':
             tokens.append(LSQUARE(curr_index))
@@ -401,40 +432,54 @@ def lex(source: str) -> List[Token]:
 if __name__ == "__main__":
     import sys
 
-    if len(sys.argv) < 2:
-        print("Usage: python lexer.py <input_file>")
+    # 检查命令行参数数量
+    if len(sys.argv) < 3:
+        print("Usage: python lexer.py -l <input_file.jpl>")
         sys.exit(1)
 
-    with open(sys.argv[1], "r", encoding="utf-8") as f:
-        source_code = f.read()
+    # 检查是否传入 -l 参数
+    if sys.argv[1] != "-l":
+        print("Unknown option, expected '-l'")
+        sys.exit(1)
+
+    filename = sys.argv[2]
 
     try:
+        with open(filename, "r", encoding="utf-8") as f:
+            source_code = f.read()
+
         tokens = lex(source_code)
+
+        # 自定义打印格式
         for tk in tokens:
-            # 针对不同 Token 做不同的输出
             if isinstance(tk, NEWLINE):
                 print("NEWLINE")
             elif isinstance(tk, END_OF_FILE):
                 print("END_OF_FILE")
             elif isinstance(tk, LET):
                 print("LET 'let'")
-            elif isinstance(tk, INTVAL):
-                print(f"INTVAL '{tk.value}'")
-            elif isinstance(tk, VARIABLE):
-                # VARIABLE 'z'
-                print(f"VARIABLE '{tk.name}'")
-            elif isinstance(tk, EQUALS):
-                print("EQUALS '='")
             elif isinstance(tk, FN):
                 print("FN 'fn'")
             elif isinstance(tk, RETURN):
                 print("RETURN 'return'")
             elif isinstance(tk, SHOW):
                 print("SHOW 'show'")
-            elif isinstance(tk, LPAREN):
-                print("LPAREN '('")
-            elif isinstance(tk, RPAREN):
-                print("RPAREN ')'")
+            elif isinstance(tk, ASSERT):
+                print("ASSERT 'assert'")
+            elif isinstance(tk, FALSE):
+                print("FALSE 'false'")
+            elif isinstance(tk, VARIABLE):
+                print(f"VARIABLE '{tk.name}'")
+            elif isinstance(tk, EQUALS):
+                print("EQUALS '='")
+            elif isinstance(tk, INTVAL):
+                print(f"INTVAL '{tk.value}'")
+            elif isinstance(tk, FLOATVAL):
+                print(f"FLOATVAL '{tk.value}'")
+            elif isinstance(tk, STRING):
+                print(f"STRING \"{tk.value}\"")
+            elif isinstance(tk, OP):
+                print(f"OP '{tk.symbol}'")
             elif isinstance(tk, COLON):
                 print("COLON ':'")
             elif isinstance(tk, INT):
@@ -443,13 +488,31 @@ if __name__ == "__main__":
                 print("LCURLY '{'")
             elif isinstance(tk, RCURLY):
                 print("RCURLY '}'")
-            # ... 以及其他关键字/标点符号 ...
+            elif isinstance(tk, LPAREN):
+                print("LPAREN '('")
+            elif isinstance(tk, RPAREN):
+                print("RPAREN ')'")
+            elif isinstance(tk, LSQUARE):
+                print("LSQUARE '['")
+            elif isinstance(tk, RSQUARE):
+                print("RSQUARE ']'")
+            elif isinstance(tk, COMMA):
+                print("COMMA ','")
+            elif isinstance(tk, DOT):
+                print("DOT '.'")
+            elif isinstance(tk, BOOL):
+                print("BOOL 'bool'")
+            elif isinstance(tk, ARRAY):
+                print(f"ARRAY 'array'")
             else:
-                # 默认情况，可以先打印类名, 再做补充:
+                # 对于未覆盖的 Token，直接打印类名
                 print(tk.__class__.__name__)
 
-        print("Compilation succeeded")
+        # 词法分析成功
+        print("Compilation succeeded\n")
 
     except Exception as e:
+        # 词法分析失败，打印具体错误信息
         print("Compilation failed")
+        print(e)  # 打印错误信息
         sys.exit(1)

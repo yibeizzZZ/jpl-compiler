@@ -1,10 +1,13 @@
 .PHONY: compile run clean
 
-compile:
+compile:	
 	python3 -m py_compile lexer.py
 
-run: compile
+go: compile	
 	python3 lexer.py $(TEST)
 
-clean:
+run: compile	
+	python3 lexer.py -l $(TEST)
+
+clean:	
 	rm -rf __pycache__/

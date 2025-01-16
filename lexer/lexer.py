@@ -448,6 +448,7 @@ if __name__ == "__main__":
                 # 默认情况，可以先打印类名, 再做补充:
                 print(tk.__class__.__name__)
 
+        print("Compilation succeeded")
 
     except Exception as e:
         print("Compilation failed")

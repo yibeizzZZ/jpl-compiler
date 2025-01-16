@@ -1,0 +1,27 @@
+NEWLINE
+LET 'let'
+VARIABLE 'z'
+EQUALS '='
+VARIABLE 'foo'
+LCURLY '{'
+INTVAL '1'
+COMMA ','
+INTVAL '2'
+COMMA ','
+FALSE 'false'
+COMMA ','
+INTVAL '4'
+COMMA ','
+INTVAL '5'
+COMMA ','
+INTVAL '6'
+RCURLY '}'
+NEWLINE
+ASSERT 'assert'
+VARIABLE 'z'
+DOT '.'
+VARIABLE 'bar'
+COMMA ','
+STRING '"hello!"'
+NEWLINE
+END_OF_FILE

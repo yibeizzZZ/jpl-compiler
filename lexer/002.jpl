@@ -1,0 +1,3 @@
+// ERROR
+
+let rect3d{ W, H, D } = square{ 800, 600 }

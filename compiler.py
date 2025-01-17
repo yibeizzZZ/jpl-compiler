@@ -262,8 +262,8 @@ def lex_string(source: str, start_index: int) -> Tuple[Token, int]:
         # Closing quote found
         if char == '"':
             curr_index += 1
-            if acc == "":
-                raise ValueError(f"Error: Empty string literal at position {start_index}")
+            if acc.strip() == "":
+                raise ValueError(f"Error: Empty or whitespace-only string literal at position {start_index}")
             return (STRING(start_index, acc), curr_index)
 
         # Append character to string

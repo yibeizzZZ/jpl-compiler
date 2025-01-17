@@ -1,3 +1,5 @@
+TEST=tets.jpl
+
 .PHONY: compile run clean
 
 compile:	

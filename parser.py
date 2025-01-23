@@ -1,6 +1,6 @@
 from typing import List, Union
 from dataclasses import dataclass
-from compiler import *
+from lexer import *
 
 
 # Base AST Node
@@ -16,15 +16,6 @@ class ASTNode:
 @dataclass
 class Cmd(ASTNode):
     pass
-
-
-@dataclass
-class LetCmd(Cmd):
-    var_name: str
-    value: "Expr"
-
-    def to_s_expression(self) -> str:
-        return f"(LetCmd {self.var_name} {self.value.to_s_expression()})"
 
 
 @dataclass
@@ -126,12 +117,27 @@ class ArrayLiteralExpr(Expr):
 
     def to_s_expression(self) -> str:
         elements_s = " ".join(e.to_s_expression() for e in self.elements)
-        return f"(ArrayLiteralExpr {elements_s})"
+        if elements_s:  # 如果非空
+            return f"(ArrayLiteralExpr {elements_s})"
+        else:
+            return "(ArrayLiteralExpr)"
 
 
-# LValue
+# LValue@dataclass
+
 @dataclass
-class VarLValue(ASTNode):
+class LValue(ASTNode):
+    pass
+
+@dataclass
+class LetCmd(Cmd):
+    lvalue: LValue       # 存一个左值对象
+    value: Expr          # 存一个表达式
+    def to_s_expression(self) -> str:
+        return f"(LetCmd {self.lvalue.to_s_expression()} {self.value.to_s_expression()})"
+    
+@dataclass
+class VarLValue(LValue):
     name: str
 
     def to_s_expression(self) -> str:
@@ -182,11 +188,15 @@ class Parser:
 
     def parse_let_cmd(self) -> LetCmd:
         self.match(LET)
-        var_name = self.parse_mixed_var_expr().name
+        lval = self.parse_lvalue()
         self.match(EQUALS)
-        value = self.parse_expr()
-        return LetCmd(start_idx=self.pos, var_name=var_name, value=value)
+        rhs_expr = self.parse_expr()
+        return LetCmd(start_idx=self.pos, lvalue=lval, value=rhs_expr)
 
+    def parse_lvalue(self) -> LValue:
+        token = self.match(VARIABLE)
+        return VarLValue(start_idx=token.start_idx, name=token.name)
+    
     def parse_print_cmd(self) -> PrintCmd:
         self.match(PRINT)
         message = self.match(STRING).value
@@ -194,8 +204,8 @@ class Parser:
 
     def parse_read_cmd(self) -> ReadCmd:
         self.match(READ)
-        if isinstance(self.current_token(), IMAGE):
-            self.advance()
+        isinstance(self.current_token(), IMAGE)
+        self.advance()
         filename = self.match(STRING).value
         self.match(TO)
         var_name = self.parse_mixed_var_expr().name
@@ -278,7 +288,10 @@ class Parser:
 
     def parse_int_expr(self) -> IntExpr:
         token = self.match(INTVAL)
-        return IntExpr(start_idx=token.start_idx, value=token.value)
+        val = token.value  
+        if val < - (2**63) or val > (2**63 - 1):
+            raise SyntaxError(f"Integer out of 64-bit range: {val}")
+        return IntExpr(start_idx=token.start_idx, value=val)
 
     def parse_float_expr(self) -> FloatExpr:
         token = self.match(FLOATVAL)
@@ -314,38 +327,18 @@ class Parser:
     # Parse entire program
     def parse_program(self) -> List[Cmd]:
         commands = []
-        while self.current_token() is not None and not isinstance(
-            self.current_token(), END_OF_FILE
-        ):
-            commands.append(self.parse_cmd())
-            if isinstance(self.current_token(), NEWLINE):
+        while True:
+        # 跳过所有 NEWLINE
+            while isinstance(self.current_token(), NEWLINE):
                 self.advance()
+        # 若已经EOF，就break
+            if self.current_token() is None or isinstance(self.current_token(), END_OF_FILE):
+                break
+        # 解析一条命令
+            cmd = self.parse_cmd()
+            commands.append(cmd)
+        # 解析完后，再跳过结尾的 NEWLINE
+            while isinstance(self.current_token(), NEWLINE):
+                self.advance()
+        # 再循环
         return commands
-
-
-# Main entry point
-if __name__ == "__main__":
-    import sys
-
-    if len(sys.argv) < 2:
-        print("Usage: python parser.py <input_file.jpl>")
-        sys.exit(1)
-
-    filename = sys.argv[1]
-
-    try:
-        with open(filename, "r", encoding="utf-8") as f:
-            source_code = f.read()
-
-        tokens = lex(source_code)
-        parser = Parser(tokens)
-        ast = parser.parse_program()
-
-        for cmd in ast:
-            print(cmd.to_s_expression())
-
-        print("Parsing succeeded")
-
-    except Exception as e:
-        print(f"Parsing failed: {e}")
-        sys.exit(1)

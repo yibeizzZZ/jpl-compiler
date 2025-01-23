@@ -1,20 +1,20 @@
 # Default file for testing (can be overridden using TEST)
 TEST=test.jpl
-
+FLAGS=-p
 # Default target
 all: help
 
 # Compile Python file for syntax errors
 compile: compiler.py
-	python3 -m py_compile $^
+	python3 -m py_compile $^ parser.py
 
 # Run the lexer
 run:
-	python3 compiler.py -l $(TEST)
+	python3 compiler.py $(FLAGS) $(TEST)
 
 # Run tests with the auto-grader
 test:
-	make -C ./grader DIR=$(PWD) test-hw2
+	make -C ./grader DIR=$(PWD) test-hw3
 
 # Display help
 help:

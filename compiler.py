@@ -129,7 +129,7 @@ if __name__ == "__main__":
             print("Compilation succeeded")
 
         except Exception as e:
-            print(f"Compilation failed")
+            print(f"Compilation failed , {e}")
             sys.exit(1)
 
     else:

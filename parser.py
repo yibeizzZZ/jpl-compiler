@@ -372,27 +372,36 @@ class Parser:
     # --------------------------------------------------
     def parse_cmd(self) -> Cmd:
         current = self.current_token()
+    
+        # ✅ Parse a single command
         if isinstance(current, LET):
-            return self.parse_let_cmd()
+            cmd = self.parse_let_cmd()
         elif isinstance(current, PRINT):
-            return self.parse_print_cmd()
+            cmd = self.parse_print_cmd()
         elif isinstance(current, READ):
-            return self.parse_read_cmd()
+            cmd = self.parse_read_cmd()
         elif isinstance(current, WRITE):
-            return self.parse_write_cmd()
+            cmd = self.parse_write_cmd()
         elif isinstance(current, ASSERT):
-            return self.parse_assert_cmd()
+            cmd = self.parse_assert_cmd()
         elif isinstance(current, SHOW):
-            return self.parse_show_cmd()
+            cmd = self.parse_show_cmd()
         elif isinstance(current, TIME):
-            return self.parse_time_cmd()
+            cmd = self.parse_time_cmd()
         elif isinstance(current, FN):
-            return self.parse_fn_cmd()
+            cmd = self.parse_fn_cmd()
         elif isinstance(current, STRUCT):
-            return self.parse_struct_cmd()
+            cmd = self.parse_struct_cmd()
         else:
             raise SyntaxError(f"Unexpected command: {current}")
-
+    
+        # ✅ Check for another command **before returning**
+        next_token = self.current_token()
+        if isinstance(next_token, (PRINT, SHOW, READ, WRITE, ASSERT, LET, TIME, FN, STRUCT)):
+            raise SyntaxError("Commands must be on separate lines.")
+    
+        return cmd  # ✅ Now, `cmd` is always definedparse_cmd(self) -> Cmd:
+        
     # ---------------- HW3: let_cmd ----------------
     def parse_let_cmd(self) -> LetCmd:
         self.match(LET)
@@ -472,6 +481,8 @@ class Parser:
     def parse_time_cmd(self) -> TimeCmd:
         self.match(TIME)
         cmd = self.parse_cmd()
+        if isinstance(self.current_token(), PRINT) or isinstance(self.current_token(), TIME):
+            raise SyntaxError("Invalid syntax: 'time' must be followed by exactly one command.")
         return TimeCmd(start_idx=self.pos, cmd=cmd)
 
     # ---------------- parse_mixed_var_expr (旧需求) ----------------
@@ -739,10 +750,9 @@ class Parser:
         return Binding(start_idx=self.pos, lvalue=lv, type_node=t)
 
     def parse_type(self) -> TypeNode:
-        """
-        假设可以: int, float, structName, plus array [..], multi-d
-        """
         cur = self.current_token()
+    
+    # Parse base type (int, float, bool, struct)
         if isinstance(cur, INT):
             self.advance()
             base = IntType(start_idx=self.pos)
@@ -756,28 +766,28 @@ class Parser:
             self.advance()
             base = VoidType(start_idx=self.pos)
         elif isinstance(cur, VARIABLE):
-            # 解析 struct Type
             name_ = cur.name
             self.advance()
             base = StructType(start_idx=self.pos, name=name_)
         else:
             raise SyntaxError(f"Unexpected type: {cur}")
 
-        # 看看是否有 [..] => multi-dim
-        total_dim = 0
+    # ✅ Fix: Preserve nesting instead of merging
         while isinstance(self.current_token(), LSQUARE):
             self.match(LSQUARE)
+        
             dim = 1
             while isinstance(self.current_token(), COMMA):
                 self.advance()
                 dim += 1
-            total_dim += dim
             self.match(RSQUARE)
+        
+            # ✅ Wrap previous type inside a new `ArrayType`
+            base = ArrayType(start_idx=self.pos, element_type=base, dimension=dim)
+        
+            # ✅ Debugging Nested Arrays
 
-        if total_dim > 0:
-            return ArrayType(start_idx=self.pos, element_type=base, dimension=total_dim)
-        else:
-            return base
+        return base  # ✅ Returns fully nested `ArrayType`
 
 
     def parse_stmt(self) -> Stmt:

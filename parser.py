@@ -1,5 +1,6 @@
 from typing import List, Union , Optional
 from dataclasses import dataclass,field
+from enum import Enum
 from lexer import *  # <-- 这里保持导入你现有的 lexer.py
 # =================================================================
 #  1) AST 节点 (与已有代码合并；若你已定义，可直接覆盖/跳过)
@@ -321,6 +322,71 @@ class Binding(ASTNode):
         return f"(Binding {self.lvalue.to_s_expression()} {self.type_node.to_s_expression()})"
 
 
+# ----------------HW5 ----------------
+class Binop(Enum):
+    PLUS = '+'
+    MINUS = '-'
+    MULT = '*'
+    DIV = '/'
+    MOD = '%'
+    LT = '<'
+    GT = '>'
+    LE = '<='
+    GE = '>='
+    EQ = '=='
+    NE = '!='
+    AND = '&&'
+    OR = '||'
+
+class Unop(Enum):
+    NEG = '-'   # 负号
+    NOT = '!'   # 逻辑非
+
+@dataclass
+class UnopExpr(Expr):
+    op: Unop
+    operand: Expr
+    def to_s_expression(self) -> str:
+        return f"(UnopExpr {self.op.value} {self.operand.to_s_expression()})"
+
+@dataclass
+class BinopExpr(Expr):
+    left: Expr
+    op: Binop
+    right: Expr
+    def to_s_expression(self) -> str:
+        return f"(BinopExpr {self.left.to_s_expression()} {self.op.value} {self.right.to_s_expression()})"
+
+@dataclass
+class IfExpr(Expr):
+    cond: Expr
+    then_branch: Expr
+    else_branch: Expr
+    def to_s_expression(self) -> str:
+        return f"(IfExpr {self.cond.to_s_expression()} {self.then_branch.to_s_expression()} {self.else_branch.to_s_expression()})"
+
+
+@dataclass
+class ArrayLoopExpr(Expr):
+    bounds: List[Tuple[str, Expr]]
+    body: Expr
+    def to_s_expression(self) -> str:
+        if self.bounds:
+            bounds_s = " ".join(f"{var} {expr.to_s_expression()}" for var, expr in self.bounds)
+            return f"(ArrayLoopExpr {bounds_s} {self.body.to_s_expression()})"
+        else:
+            return f"(ArrayLoopExpr {self.body.to_s_expression()})"
+
+@dataclass
+class SumLoopExpr(Expr):
+    bounds: List[Tuple[str, Expr]]
+    body: Expr
+    def to_s_expression(self) -> str:
+        if self.bounds:
+            bounds_s = " ".join(f"{var} {expr.to_s_expression()}" for var, expr in self.bounds)
+            return f"(SumLoopExpr {bounds_s} {self.body.to_s_expression()})"
+        else:
+            return f"(SumLoopExpr {self.body.to_s_expression()})"
 
 # =================================================================
 #  2) Parser 类 — 在你的原代码基础上做【最小改动】，以支持HW4语法
@@ -506,57 +572,208 @@ class Parser:
     # ========================================================================
     #  parse_expr: 在 HW3 基础上扩展 HW4 表达式 (void, struct literal, (), call, dot, index, etc.)
     # ========================================================================
-    def parse_expr(self) -> Expr:
-        current = self.current_token()
 
-        # 1) 整数
+
+    # ========================================================================
+    #  这里放的是HW5 在优先级结束再回到之前hw的东西
+    # ========================================================================
+
+    # ─────────── 表达式解析入口 ───────────
+    def parse_expr(self) -> Expr:
+        return self.parse_expr_bool()
+
+    # Level 6: 处理布尔运算 && 和 ||
+    def parse_expr_bool(self) -> Expr:
+        expr = self.parse_expr_comp()
+        while isinstance(self.current_token(), OP) and self.current_token().symbol in ('&&', '||'):
+            op_token = self.current_token()
+            self.advance()
+            right = self.parse_expr_comp()
+            op = Binop.AND if op_token.symbol == '&&' else Binop.OR
+            expr = BinopExpr(start_idx=expr.start_idx, left=expr, op=op, right=right)
+        return expr
+
+    # Level 5: 处理比较运算 (<, >, <=, >=, ==, !=)
+    def parse_expr_comp(self) -> Expr:
+        expr = self.parse_expr_add()
+        while True:
+            current = self.current_token()
+            op = None
+            if isinstance(current, OP) and current.symbol in ('<', '>', '<=', '>=', '=='):
+                op_symbol = current.symbol
+                self.advance()
+                if op_symbol == '<':
+                    op = Binop.LT
+                elif op_symbol == '>':
+                    op = Binop.GT
+                elif op_symbol == '<=':
+                    op = Binop.LE
+                elif op_symbol == '>=':
+                    op = Binop.GE
+                elif op_symbol == '==':
+                    op = Binop.EQ
+            # 处理 "!="：lexer把 "!=" 分解为 OP("!") + EQUALS
+            elif isinstance(current, OP) and current.symbol == '!' and isinstance(self._peek_next(), EQUALS):
+                self.advance()  # 消耗 '!'
+                self.advance()  # 消耗 EQUALS
+                op = Binop.NE
+            else:
+                break
+            right = self.parse_expr_add()
+            expr = BinopExpr(start_idx=expr.start_idx, left=expr, op=op, right=right)
+        return expr
+
+    # Level 4: 处理加法、减法
+    def parse_expr_add(self) -> Expr:
+        expr = self.parse_expr_mul()
+        while isinstance(self.current_token(), OP) and self.current_token().symbol in ('+', '-'):
+            op_token = self.current_token()
+            self.advance()
+            right = self.parse_expr_mul()
+            op = Binop.PLUS if op_token.symbol == '+' else Binop.MINUS
+            expr = BinopExpr(start_idx=expr.start_idx, left=expr, op=op, right=right)
+        return expr
+
+    # Level 3: 处理乘法、除法、取模
+    def parse_expr_mul(self) -> Expr:
+        expr = self.parse_expr_unary()
+        while isinstance(self.current_token(), OP) and self.current_token().symbol in ('*', '/', '%'):
+            op_token = self.current_token()
+            self.advance()
+            right = self.parse_expr_unary()
+            if op_token.symbol == '*':
+                op = Binop.MULT
+            elif op_token.symbol == '/':
+                op = Binop.DIV
+            elif op_token.symbol == '%':
+                op = Binop.MOD
+            expr = BinopExpr(start_idx=expr.start_idx, left=expr, op=op, right=right)
+        return expr
+
+    # Level 2: 处理一元前缀运算符 '-' 和 '!'
+    def parse_expr_unary(self) -> Expr:
+        current = self.current_token()
+        if isinstance(current, OP) and current.symbol in ('-', '!'):
+            op_symbol = current.symbol
+            self.advance()
+            # 递归调用 parse_expr_unary() 支持连续一元运算符
+            operand = self.parse_expr_unary()
+            op = Unop.NEG if op_symbol == '-' else Unop.NOT
+            return UnopExpr(start_idx=operand.start_idx, op=op, operand=operand)
+        else:
+            # 若不是 '-' 或 '!'，进入基本表达式层（包括前缀关键字 if, array, sum）
+            return self.parse_expr_basic()
+
+    # Level 1: 处理前缀关键字 if, array, sum；否则调用后缀解析
+    def parse_expr_basic(self) -> Expr:
+        current = self.current_token()
+        if isinstance(current, IF):
+            self.match(IF)
+            cond = self.parse_expr()
+            self.match(THEN)
+            then_expr = self.parse_expr()
+            self.match(ELSE)
+            else_expr = self.parse_expr()
+            return IfExpr(start_idx=cond.start_idx, cond=cond, then_branch=then_expr, else_branch=else_expr)
+        elif isinstance(current, ARRAY):
+            self.match(ARRAY)
+            self.match(LSQUARE)
+            bounds = self.parse_loop_bounds()
+            self.match(RSQUARE)
+            # 调用 parse_expr() 解析整个操作数，确保诸如 "-a" 或 "a+b"能被整体解析
+            body = self.parse_expr()
+            return ArrayLoopExpr(start_idx=body.start_idx, bounds=bounds, body=body)
+        elif isinstance(current, SUM):
+            self.match(SUM)
+            self.match(LSQUARE)
+            bounds = self.parse_loop_bounds()
+            self.match(RSQUARE)
+            body = self.parse_expr()
+            return SumLoopExpr(start_idx=body.start_idx, bounds=bounds, body=body)
+        else:
+            return self.parse_expr_postfix()
+
+    # 后缀层：处理成员访问、下标索引、函数调用
+    def parse_expr_postfix(self) -> Expr:
+        expr = self.parse_expr_primary()
+        while True:
+            current = self.current_token()
+            if isinstance(current, DOT):
+                self.match(DOT)
+                field_tok = self.match(VARIABLE)
+                expr = DotExpr(start_idx=expr.start_idx, left=expr, right=field_tok.name)
+            elif isinstance(current, LSQUARE):
+                self.match(LSQUARE)
+                args = []
+                if not isinstance(self.current_token(), RSQUARE):
+                    args.append(self.parse_expr())
+                    while isinstance(self.current_token(), COMMA):
+                        self.match(COMMA)
+                        args.append(self.parse_expr())
+                self.match(RSQUARE)
+                expr = ArrayIndexExpr(start_idx=expr.start_idx, array=expr, indexes=args)
+            elif isinstance(current, LPAREN):
+                self.match(LPAREN)
+                args = []
+                if not isinstance(self.current_token(), RPAREN):
+                    args.append(self.parse_expr())
+                    while isinstance(self.current_token(), COMMA):
+                        self.match(COMMA)
+                        args.append(self.parse_expr())
+                self.match(RPAREN)
+                expr = CallExpr(start_idx=expr.start_idx, function=expr, arguments=args)
+            else:
+                break
+        return expr
+
+    # Primary 表达式：字面量、变量、括号表达式、数组字面量、结构字面量等
+    def parse_expr_primary(self) -> Expr:
+        current = self.current_token()
         if isinstance(current, INTVAL):
-            expr = self.parse_int_expr()
-        # 2) 浮点数
+            return self.parse_int_expr()
         elif isinstance(current, FLOATVAL):
-            expr = self.parse_float_expr()
-        # 3) true / false
+            return self.parse_float_expr()
         elif isinstance(current, TRUE):
-            expr = self.parse_true_expr()
+            return self.parse_true_expr()
         elif isinstance(current, FALSE):
-            expr = self.parse_false_expr()
-        # 4) void
+            return self.parse_false_expr()
         elif isinstance(current, VOID):
-            expr = self.parse_void_expr()
-        # 5) [ ... ] => array literal
+            return self.parse_void_expr()
         elif isinstance(current, LSQUARE):
-            expr = self.parse_array_literal_expr()
-        # 6) ( expr ) => parenthesized
+            # 如果以 '[' 开始则解析为数组字面量
+            return self.parse_array_literal_expr()
         elif isinstance(current, LPAREN):
             self.match(LPAREN)
-            inner = self.parse_expr()
+            expr = self.parse_expr()
             self.match(RPAREN)
-            expr = inner
-        # 7) variable 或 struct literal?
+            return expr
         elif isinstance(current, VARIABLE):
             lookahead = self._peek_next()
             if isinstance(lookahead, LCURLY):
-                expr = self.parse_struct_literal_expr()
+                return self.parse_struct_literal_expr()
             else:
-                base = self.parse_var_expr()
-                expr = self.parse_expr_suffix(base)
-    # 8) dot => (极少见的情况：一开始就是 '.')
-        elif isinstance(current, DOT):
-            base = self.parse_mixed_var_expr()
-            expr = base  # 不做后缀处理
-    # 9) string => 你曾尝试 parse_string_expr，如果语法不支持就报错
-        elif isinstance(current, STRING):
-            expr = self.parse_string_expr()
+                return self.parse_var_expr()
         else:
             raise SyntaxError(f"Unexpected expression: {current}")
 
-    # # 关键：对 expr 再做一次后缀解析（除了已经在分支内处理的情况）
-    #     if isinstance(expr, (VarExpr, ArrayIndexExpr, CallExpr, DotExpr, StructLiteralExpr)):
-    #         expr = self.parse_expr_suffix(expr)
 
-        expr = self.parse_expr_suffix(expr)
-        return expr
-
+    def parse_loop_bounds(self) -> List[Tuple[str, Expr]]:
+        bounds = []
+        if isinstance(self.current_token(), RSQUARE):
+            return bounds
+        token = self.match(VARIABLE)
+        var_name = token.name
+        self.match(COLON)
+        expr_bound = self.parse_expr()
+        bounds.append((var_name, expr_bound))
+        while isinstance(self.current_token(), COMMA):
+            self.match(COMMA)
+            token = self.match(VARIABLE)
+            var_name = token.name
+            self.match(COLON)
+            expr_bound = self.parse_expr()
+            bounds.append((var_name, expr_bound))
+        return bounds
 
     def parse_struct_literal_expr(self) -> StructLiteralExpr:
         # structName { expr1, expr2, ... }
@@ -819,3 +1036,4 @@ class Parser:
         self.match(RETURN)
         e = self.parse_expr()
         return ReturnStmt(start_idx=self.pos, expr=e)
+

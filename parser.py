@@ -26,9 +26,9 @@ class PrintCmd(Cmd):
 @dataclass
 class ReadCmd(Cmd):
     filename: str
-    var_name: str
+    lvalue: "LValue"
     def to_s_expression(self) -> str:
-        return f'(ReadCmd "{self.filename}" (VarLValue {self.var_name}))'
+        return f'(ReadCmd "{self.filename}" {self.lvalue.to_s_expression()})'
 
 @dataclass
 class WriteCmd(Cmd):
@@ -514,13 +514,13 @@ class Parser:
 
     def parse_read_cmd(self) -> ReadCmd:
         self.match(READ)
-        # 跳过 'image' (如果存在)
+    # 跳过 'image' (如果存在)
         if isinstance(self.current_token(), IMAGE):
             self.advance()
         filename = self.match(STRING).value
         self.match(TO)
-        var_name = self.parse_mixed_var_expr().name
-        return ReadCmd(start_idx=self.pos, filename=filename, var_name=var_name)
+        lval = self.parse_lvalue()   # 使用支持数组下标的 lvalue 解析器
+        return ReadCmd(start_idx=self.pos, filename=filename, lvalue=lval)
 
     def parse_write_cmd(self) -> WriteCmd:
         self.match(WRITE)

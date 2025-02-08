@@ -658,6 +658,10 @@ class Parser:
             self.advance()
             # 递归调用 parse_expr_unary() 支持连续一元运算符
             operand = self.parse_expr_unary()
+    
+            if op_symbol == '-' and isinstance(operand, (TrueExpr, FalseExpr, VoidExpr)):
+                raise SyntaxError(f"Invalid use of '-' on {operand}")
+            
             op = Unop.NEG if op_symbol == '-' else Unop.NOT
             return UnopExpr(start_idx=operand.start_idx, op=op, operand=operand)
         else:
@@ -701,6 +705,9 @@ class Parser:
             if isinstance(current, DOT):
                 self.match(DOT)
                 field_tok = self.match(VARIABLE)
+
+                if isinstance(expr, (TrueExpr, FalseExpr, VoidExpr)):
+                    raise SyntaxError(f"Invalid use of '.' on {expr}")
                 expr = DotExpr(start_idx=expr.start_idx, left=expr, right=field_tok.name)
             elif isinstance(current, LSQUARE):
                 self.match(LSQUARE)

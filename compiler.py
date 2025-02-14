@@ -1,7 +1,7 @@
 import string
 from typing import List, Tuple
 from dataclasses import dataclass
-from parser import *
+from typechecker import *
 
 
 def process_tokens(tokens):
@@ -130,6 +130,22 @@ if __name__ == "__main__":
 
         except Exception as e:
             print(f"Compilation failed , {e}")
+            sys.exit(1)
+
+    elif sys.argv[1] == "-t":
+        filename = sys.argv[2]
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                source_code = f.read()
+                tokens = lex(source_code)
+            parser = Parser(tokens)
+            ast = parser.parse_program()
+            annotated_ast = typecheck_and_annotate(ast)  # 确保返回的是一个列表
+            for cmd in annotated_ast:
+                print(cmd)
+            print("Compilation succeeded")
+        except Exception as e:
+            print(f"Compilation failed, {e}")
             sys.exit(1)
 
     else:

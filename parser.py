@@ -121,8 +121,7 @@ class StructCmd(Cmd):
 # ---------------- Expressions ----------------
 @dataclass
 class Expr(ASTNode):
-    resolved_type: Optional["TypeNode"] = field(default=None, init=False)
-
+    pass
 
 @dataclass
 class IntExpr(Expr):
@@ -171,9 +170,10 @@ class VoidExpr(Expr):
 @dataclass
 class StructLiteralExpr(Expr):
     struct_name: str
-    fields: List[Expr] = field(default_factory=list)
+    fields: List[Expr]
     def to_s_expression(self) -> str:
-        if not self.fields:
+        if len(self.fields) == 0:
+            # 无字段 => 不要多余空格
             return f"(StructLiteralExpr {self.struct_name})"
         else:
             fields_s = " ".join(f.to_s_expression() for f in self.fields)

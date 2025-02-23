@@ -1,15 +1,714 @@
-make -C ./grader DIR=/root/CS4470HWs test-hw5
+make -C ./grader DIR=/root/CS4470HWs test-hw7
 make[1]: Entering directory '/root/CS4470HWs/grader'
-Homework 5 part 1 ......................................................
-........................................................................
-..................
-Passed 144/144 = 100.0% tests
-Homework 5 part 2 ..................................................
-Passed 50/50 = 100.0% tests
-Homework 5 part 3 ....................
-Passed 20/20 = 100.0% tests
-Homework 5 part 4 ....................
-Passed 20/20 = 100.0% tests
-Homework 5 part 5 ....................
-Passed 20/20 = 100.0% tests
+Homework 7 part 1 ......................................................
+.......................
+Passed 77/77 = 100.0% tests
+Homework 7 part 2 ......................................................
+.............
+Passed 67/67 = 100.0% tests
+Homework 7 part 3 W
+001.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+002.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+003.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+004.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+005.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+006.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+007.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+008.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+009.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+010.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+011.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+012.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+013.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+014.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+015.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+016.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+017.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+018.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+019.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+020.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+021.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+022.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+023.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+024.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+025.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+026.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+027.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+028.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+029.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+030.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+031.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+032.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+033.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+034.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+035.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+036.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+037.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+038.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+039.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+040.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+041.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+042.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+043.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+044.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+045.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+046.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+047.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+048.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+049.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+050.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+051.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+052.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+053.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+054.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+055.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+056.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+057.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+058.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+059.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+060.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+061.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+062.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+063.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+064.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+065.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+066.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+067.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+068.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+069.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+070.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+071.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+072.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+073.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+074.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+075.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+076.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+077.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+078.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+079.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+080.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+081.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+082.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+083.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+084.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+085.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+086.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+087.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+088.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+089.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+090.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+091.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+092.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+093.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+094.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+095.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+096.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+097.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+098.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+099.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+W
+100.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:14: run] Error 1
+
+
+=======================
+
+Passed 0/100 = 0.0% tests
+Homework 7 part 4 ......................................................
+......
+Passed 60/60 = 100.0% tests
 make[1]: Leaving directory '/root/CS4470HWs/grader'

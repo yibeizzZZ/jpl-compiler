@@ -315,9 +315,9 @@ def typecheck_command(cmd: Cmd, env: Env) -> None:
     elif isinstance(cmd, ShowCmd):
         t = type_of_expr(cmd.expr, env)
         cmd.expr.resolved_type = t
+    # 如果表达式中存在数组推导，则最终显示结果必须是单个像素（rgba）
         if contains_array_comprehension(cmd.expr):
-        # 如果表达式中存在数组推导，则最终显示结果必须是单个像素：rgba
-            if not (isinstance(t, StructType) and t.name == "rgba"):
+           if not (isinstance(t, StructType) and t.name == "rgba"):
                 raise TypeError("Show command expression derived from array comprehension must yield type rgba")
 
 
@@ -452,21 +452,32 @@ def typecheck_program(cmds: List[Cmd]) -> None:
             if isinstance(cmd.lvalue, VarLValue):
                 if cmd.lvalue.name in RESERVED:
                     raise TypeError(f"Cannot use reserved variable {cmd.lvalue.name} for read")
-                global_env.vars[cmd.lvalue.name] = ArrayType(start_idx=cmd.start_idx, 
-                                                      element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
-                                                      dimension=2)
-    # 如果目标是数组左值，则要求其下标数必须恰好为 2
+        # 检查重复绑定：如果变量已经存在，则报错
+                if cmd.lvalue.name in global_env.vars:
+                    raise TypeError(f"Duplicate declaration of variable {cmd.lvalue.name}")
+                global_env.vars[cmd.lvalue.name] = ArrayType(
+                    start_idx=cmd.start_idx, 
+                    element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
+                    dimension=2
+                )
             elif isinstance(cmd.lvalue, ArrayLValue):
                 if cmd.lvalue.array in RESERVED:
                     raise TypeError(f"Cannot use reserved variable {cmd.lvalue.array} for read")
                 if len(cmd.lvalue.indices) != 2:
                     raise TypeError(f"Read command for image requires exactly 2 indices, got {len(cmd.lvalue.indices)}")
-                global_env.vars[cmd.lvalue.array] = ArrayType(start_idx=cmd.start_idx, 
-                                                      element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
-                                                      dimension=2)
+                if cmd.lvalue.array in global_env.vars:
+                    raise TypeError(f"Duplicate declaration of variable {cmd.lvalue.array}")
+                global_env.vars[cmd.lvalue.array] = ArrayType(
+                    start_idx=cmd.start_idx, 
+                    element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
+                    dimension=2
+                )
                 for idx in cmd.lvalue.indices:
-                    if idx not in global_env.vars:
-                        global_env.vars[idx] = IntType(start_idx=cmd.start_idx)
+                    if idx in global_env.vars:
+                        raise TypeError(f"Duplicate declaration of variable {idx} in array binding")
+                    global_env.vars[idx] = IntType(start_idx=cmd.start_idx)
+
+
         elif isinstance(cmd, WriteCmd):
             typecheck_command(cmd, global_env)
         elif isinstance(cmd, TimeCmd):

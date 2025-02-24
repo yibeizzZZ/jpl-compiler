@@ -1,7 +1,7 @@
 # Default file for testing (can be overridden using TEST)
 # TEST=./grader/hw4/fail-fuzzer1/001.jpl
-TEST=test.jpl
-FLAGS=-p
+TEST=./grader/hw7/fail/032.jpl
+FLAGS=-t
 # Default target
 all: help
 
@@ -15,7 +15,7 @@ run:
 
 # Run tests with the auto-grader
 test:
-	make -C ./grader DIR=$(PWD) test-hw5
+	make -C ./grader DIR=$(PWD) test-hw7
 
 # Display help
 help:

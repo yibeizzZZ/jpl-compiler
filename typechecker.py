@@ -298,10 +298,9 @@ def typecheck_command(cmd: Cmd, env: Env) -> None:
         typecheck_command(cmd.cmd, env)
         if isinstance(cmd.cmd, LetCmd) and isinstance(cmd.cmd.lvalue, VarLValue):
             env.vars[cmd.cmd.lvalue.name] = type_of_expr(cmd.cmd.value, env)
-
 def typecheck_program(cmds: List[Cmd]) -> None:
     global_env = Env(vars={}, structs={})
-    # 内置结构体 rgba
+    # 内置结构体 rgba（不参与循环检测）
     global_env.structs["rgba"] = {
         "r": FloatType(start_idx=0),
         "g": FloatType(start_idx=0),
@@ -313,7 +312,12 @@ def typecheck_program(cmds: List[Cmd]) -> None:
             fields = {}
             for fname, ftype in cmd.field_pairs:
                 fields[fname] = ftype
+            # 如果结构体重复定义也会在下面处理
             global_env.structs[cmd.name] = fields
+
+    # 在添加内置变量和函数之前，先检查结构体定义是否存在循环依赖
+    check_struct_cycles(global_env.structs)
+
     # 添加内置变量和函数
     global_env.vars["argnum"] = IntType(start_idx=0)
     global_env.vars["args"] = ArrayType(start_idx=0, element_type=IntType(start_idx=0), dimension=1)
@@ -331,12 +335,12 @@ def typecheck_program(cmds: List[Cmd]) -> None:
     global_env.vars["to_int"] = FnType(start_idx=0, param_types=[FloatType(start_idx=0)], return_type=IntType(start_idx=0))
     global_env.vars["to_float"] = FnType(start_idx=0, param_types=[IntType(start_idx=0)], return_type=FloatType(start_idx=0))
     
+    # 后续对每个命令的类型检查保持不变……
     for cmd in cmds:
         if isinstance(cmd, ShowCmd):
             t = type_of_expr(cmd.expr, global_env)
             cmd.expr.resolved_type = t
         elif isinstance(cmd, LetCmd):
-            # 如果目标变量已经声明，则报错
             if isinstance(cmd.lvalue, VarLValue):
                 if cmd.lvalue.name in global_env.vars:
                     raise TypeError(f"Duplicate declaration of variable {cmd.lvalue.name}")
@@ -381,18 +385,22 @@ def typecheck_program(cmds: List[Cmd]) -> None:
             if not isinstance(t, BoolType):
                 raise TypeError("Assert command expression must be bool")
         elif isinstance(cmd, ReadCmd):
-            # ReadCmd 目标必须未被声明
-            var_name = cmd.lvalue.array if isinstance(cmd.lvalue, ArrayLValue) else cmd.lvalue.name
-            if var_name in global_env.vars:
-                raise TypeError(f"Duplicate declaration of variable {var_name} in read command")
-            if var_name in RESERVED:
-                raise TypeError(f"Cannot use reserved variable {var_name} for read")
+    # 如果目标是简单变量，则直接赋予二维数组类型
             if isinstance(cmd.lvalue, VarLValue):
+                if cmd.lvalue.name in RESERVED:
+                    raise TypeError(f"Cannot use reserved variable {cmd.lvalue.name} for read")
                 global_env.vars[cmd.lvalue.name] = ArrayType(start_idx=cmd.start_idx, 
-                    element_type=StructType(start_idx=cmd.start_idx, name="rgba"), dimension=2)
+                                                      element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
+                                                      dimension=2)
+    # 如果目标是数组左值，则要求其下标数必须恰好为 2
             elif isinstance(cmd.lvalue, ArrayLValue):
+                if cmd.lvalue.array in RESERVED:
+                    raise TypeError(f"Cannot use reserved variable {cmd.lvalue.array} for read")
+                if len(cmd.lvalue.indices) != 2:
+                    raise TypeError(f"Read command for image requires exactly 2 indices, got {len(cmd.lvalue.indices)}")
                 global_env.vars[cmd.lvalue.array] = ArrayType(start_idx=cmd.start_idx, 
-                    element_type=StructType(start_idx=cmd.start_idx, name="rgba"), dimension=2)
+                                                      element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
+                                                      dimension=2)
                 for idx in cmd.lvalue.indices:
                     if idx not in global_env.vars:
                         global_env.vars[idx] = IntType(start_idx=cmd.start_idx)
@@ -401,8 +409,6 @@ def typecheck_program(cmds: List[Cmd]) -> None:
         elif isinstance(cmd, TimeCmd):
             typecheck_command(cmd, global_env)
     return
-
-
 
 def annotate_expr(exp: Expr) -> str:
     if isinstance(exp, IntExpr):
@@ -519,7 +525,30 @@ def annotate_cmd(cmd: Cmd) -> str:
     else:
         return cmd.to_s_expression()
 
+def check_struct_cycles(structs: Dict[str, Dict[str, TypeNode]]) -> None:
+    # 定义一个辅助函数，针对每个结构体做 DFS 检测
+    def dfs(struct_name: str, visited: set) -> None:
+        if struct_name in visited:
+            raise TypeError(f"Cycle detected in struct definitions involving {struct_name}")
+        # 如果结构体未定义（通常不可能，因为在此之前已加载所有结构体），则跳过
+        if struct_name not in structs:
+            return
+        visited.add(struct_name)
+        fields = structs[struct_name]
+        for fname, ftype in fields.items():
+            # 如果字段类型是结构体类型，则检查递归
+            def check_type(t: TypeNode):
+                if isinstance(t, StructType):
+                    dfs(t.name, visited.copy())
+                elif isinstance(t, ArrayType):
+                    # 如果数组元素类型中包含结构体，则同样检查
+                    check_type(t.element_type)
+                # 其他基本类型直接跳过
+            check_type(ftype)
+        # 当返回时，当前结构体的检查完成
 
+    for sname in structs:
+        dfs(sname, set())
 
 def typecheck_and_annotate(cmds: List[Cmd]) -> List[str]:
     typecheck_program(cmds)

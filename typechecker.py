@@ -219,7 +219,7 @@ def type_of_expr(expr: Expr, env: Env) -> TypeNode:
         return rt
     else:
         raise TypeError(f"Type checking not implemented for node type: {type(expr)}")
-
+    
 def typecheck_stmt(stmt: Stmt, env: Env, expected_return: Optional[TypeNode] = None) -> None:
     if isinstance(stmt, LetStmt):
         if isinstance(stmt.lvalue, VarLValue):
@@ -232,20 +232,17 @@ def typecheck_stmt(stmt: Stmt, env: Env, expected_return: Optional[TypeNode] = N
             # 检查下标列表中是否包含主变量名称
             if stmt.lvalue.array in stmt.lvalue.indices:
                 raise TypeError(f"Array name {stmt.lvalue.array} cannot be used as an index")
-            # 获取右侧表达式的类型
-            t = type_of_expr(stmt.expr, env)
-            stmt.expr.resolved_type = t
-            # 右侧必须为数组类型
-            if not isinstance(t, ArrayType):
-                raise TypeError("Right-hand side must be an array when using array binding")
-            # 数组的秩必须与下标数量一致
-            if t.dimension != len(stmt.lvalue.indices):
-                raise TypeError(f"Array binding expects {t.dimension} indices, got {len(stmt.lvalue.indices)}")
-            # 检查主变量重复绑定
             if stmt.lvalue.array in env.vars:
                 raise TypeError(f"Duplicate declaration of variable {stmt.lvalue.array}")
+            t = type_of_expr(stmt.expr, env)
+            stmt.expr.resolved_type = t
+            # 检查：右侧必须为数组类型
+            if not isinstance(t, ArrayType):
+                raise TypeError("Right-hand side must be an array when using array binding")
+            # 检查：数组的秩必须与下标数量一致
+            if t.dimension != len(stmt.lvalue.indices):
+                raise TypeError(f"Array binding expects {t.dimension} indices, got {len(stmt.lvalue.indices)}")
             env.vars[stmt.lvalue.array] = t
-            # 为每个下标生成 int 类型绑定，且检查重复
             for idx in stmt.lvalue.indices:
                 if idx in env.vars:
                     raise TypeError(f"Duplicate declaration of variable {idx} in array binding")
@@ -304,11 +301,26 @@ def typecheck_command(cmd: Cmd, env: Env) -> None:
                     env.vars[idx] = IntType(start_idx=cmd.start_idx)
     elif isinstance(cmd, WriteCmd):
         t = type_of_expr(cmd.expr, env)
+        expected = ArrayType(start_idx=cmd.start_idx, 
+                             element_type=StructType(start_idx=cmd.start_idx, name="rgba"), 
+                             dimension=2)
+        if not types_equal(t, expected):
+            raise TypeError(f"Write image command expression must be of type {expected.to_s_expression()}, got {t.to_s_expression()}")
         cmd.expr.resolved_type = t
     elif isinstance(cmd, TimeCmd):
         typecheck_command(cmd.cmd, env)
         if isinstance(cmd.cmd, LetCmd) and isinstance(cmd.cmd.lvalue, VarLValue):
             env.vars[cmd.cmd.lvalue.name] = type_of_expr(cmd.cmd.value, env)
+    
+    elif isinstance(cmd, ShowCmd):
+        t = type_of_expr(cmd.expr, env)
+        cmd.expr.resolved_type = t
+        if contains_array_comprehension(cmd.expr):
+        # 如果表达式中存在数组推导，则最终显示结果必须是单个像素：rgba
+            if not (isinstance(t, StructType) and t.name == "rgba"):
+                raise TypeError("Show command expression derived from array comprehension must yield type rgba")
+
+
 def typecheck_program(cmds: List[Cmd]) -> None:
     global_env = Env(vars={}, structs={})
     # 内置结构体 rgba（不参与循环检测）
@@ -371,6 +383,10 @@ def typecheck_program(cmds: List[Cmd]) -> None:
             if isinstance(cmd.lvalue, VarLValue):
                 global_env.vars[cmd.lvalue.name] = t
             elif isinstance(cmd.lvalue, ArrayLValue):
+                if not isinstance(t, ArrayType):
+                    raise TypeError("Right-hand side must be an array when using array binding")
+                if t.dimension != len(cmd.lvalue.indices):
+                    raise TypeError(f"Array binding expects {t.dimension} indices, got {len(cmd.lvalue.indices)}")
                 global_env.vars[cmd.lvalue.array] = t
                 for idx in cmd.lvalue.indices:
                     if idx in global_env.vars:
@@ -597,6 +613,50 @@ def check_struct_cycles(structs: Dict[str, Dict[str, TypeNode]]) -> None:
     for sname in structs:
         dfs(sname, set())
 
+def contains_array_comprehension(expr: Expr) -> bool:
+    if isinstance(expr, ArrayLoopExpr):
+        return True
+    elif isinstance(expr, ArrayIndexExpr):
+        return contains_array_comprehension(expr.array) or any(contains_array_comprehension(e) for e in expr.indexes)
+    elif isinstance(expr, UnopExpr):
+        return contains_array_comprehension(expr.operand)
+    elif isinstance(expr, BinopExpr):
+        return contains_array_comprehension(expr.left) or contains_array_comprehension(expr.right)
+    elif isinstance(expr, IfExpr):
+        return (contains_array_comprehension(expr.cond) or 
+                contains_array_comprehension(expr.then_branch) or 
+                contains_array_comprehension(expr.else_branch))
+    elif isinstance(expr, CallExpr):
+        return contains_array_comprehension(expr.function) or any(contains_array_comprehension(arg) for arg in expr.arguments)
+    elif isinstance(expr, DotExpr):
+        return contains_array_comprehension(expr.left)
+    else:
+        return False
+
+def has_array_loop(exp: Expr) -> bool:
+    # 辅助函数：递归检查 AST 中是否存在 ArrayLoopExpr
+    if isinstance(exp, ArrayLoopExpr):
+        return True
+    elif isinstance(exp, (UnopExpr,)):
+        return has_array_loop(exp.operand)
+    elif isinstance(exp, (BinopExpr,)):
+        return has_array_loop(exp.left) or has_array_loop(exp.right)
+    elif isinstance(exp, IfExpr):
+        return has_array_loop(exp.cond) or has_array_loop(exp.then_branch) or has_array_loop(exp.else_branch)
+    elif isinstance(exp, DotExpr):
+        return has_array_loop(exp.left)
+    elif isinstance(exp, ArrayIndexExpr):
+        # 检查数组部分和每个索引（虽然索引一般不会产生 ArrayLoopExpr）
+        return has_array_loop(exp.array) or any(has_array_loop(idx) for idx in exp.indexes)
+    elif isinstance(exp, CallExpr):
+        return has_array_loop(exp.function) or any(has_array_loop(arg) for arg in exp.arguments)
+    elif isinstance(exp, ArrayLiteralExpr):
+        return any(has_array_loop(e) for e in exp.elements)
+    elif isinstance(exp, StructLiteralExpr):
+        return any(has_array_loop(f) for f in exp.fields)
+    else:
+        return False
+    
 def typecheck_and_annotate(cmds: List[Cmd]) -> List[str]:
     typecheck_program(cmds)
     return [annotate_cmd(cmd) for cmd in cmds]  

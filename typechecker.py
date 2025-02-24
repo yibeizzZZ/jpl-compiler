@@ -101,17 +101,25 @@ def type_of_expr(expr: Expr, env: Env) -> TypeNode:
         base_t = type_of_expr(expr.array, env)
         if not isinstance(base_t, ArrayType):
             raise TypeError("Indexing applied to non-array type")
+    
         for idx_expr in expr.indexes:
             idx_t = type_of_expr(idx_expr, env)
             if not isinstance(idx_t, IntType):
                 raise TypeError("Array index must be of type int")
+    
         remaining = base_t.dimension - len(expr.indexes)
+    
         if remaining < 0:
             raise TypeError("Too many indices for array")
+    
+        if remaining > 0 and len(expr.indexes) < base_t.dimension:
+            raise TypeError("Cannot index a multi-dimensional array with a single index")
+    
         if remaining == 0:
             rt = base_t.element_type
         else:
             rt = ArrayType(start_idx=expr.start_idx, element_type=base_t.element_type, dimension=remaining)
+    
         expr.resolved_type = rt
         return rt
     elif isinstance(expr, UnopExpr):
@@ -264,12 +272,6 @@ def typecheck_command(cmd: Cmd, env: Env) -> None:
     if isinstance(cmd, ShowCmd):
         t = type_of_expr(cmd.expr, env)
         cmd.expr.resolved_type = t
-    # 如果顶层表达式是 ArrayIndexExpr，则检查原始数组的秩与索引数是否匹配
-        if isinstance(cmd.expr, ArrayIndexExpr):
-            base_type = type_of_expr(cmd.expr.array, env)
-            if isinstance(base_type, ArrayType):
-                if base_type.dimension != len(cmd.expr.indexes):
-                    raise TypeError("Index count does not match the array comprehension's rank")
     elif isinstance(cmd, LetCmd):
         t = type_of_expr(cmd.value, env)
         cmd.value.resolved_type = t
@@ -318,6 +320,13 @@ def typecheck_command(cmd: Cmd, env: Env) -> None:
         if isinstance(cmd.cmd, LetCmd) and isinstance(cmd.cmd.lvalue, VarLValue):
             env.vars[cmd.cmd.lvalue.name] = type_of_expr(cmd.cmd.value, env)
     
+    elif isinstance(cmd, ShowCmd):
+        t = type_of_expr(cmd.expr, env)
+        cmd.expr.resolved_type = t
+    # 如果表达式中存在数组推导，则最终显示结果必须是单个像素（rgba）
+        if contains_array_comprehension(cmd.expr):
+           if not (isinstance(t, StructType) and t.name == "rgba"):
+                raise TypeError("Show command expression derived from array comprehension must yield type rgba")
 
 
 def typecheck_program(cmds: List[Cmd]) -> None:
@@ -329,14 +338,18 @@ def typecheck_program(cmds: List[Cmd]) -> None:
         "b": FloatType(start_idx=0),
         "a": FloatType(start_idx=0)
     }
+
+    # Process struct definitions first (even if inside TimeCmd)
     for cmd in cmds:
         if isinstance(cmd, StructCmd):
-            fields = {}
-            for fname, ftype in cmd.field_pairs:
-                fields[fname] = ftype
-            # 如果结构体重复定义也会在下面处理
+            fields = {fname: ftype for fname, ftype in cmd.field_pairs}
             global_env.structs[cmd.name] = fields
 
+        elif isinstance(cmd, TimeCmd) and isinstance(cmd.cmd, StructCmd):
+            struct_cmd = cmd.cmd  # Extract the struct inside TimeCmd
+            fields = {fname: ftype for fname, ftype in struct_cmd.field_pairs}
+            global_env.structs[struct_cmd.name] = fields
+        
     # 在添加内置变量和函数之前，先检查结构体定义是否存在循环依赖
     check_struct_cycles(global_env.structs)
 
@@ -360,7 +373,8 @@ def typecheck_program(cmds: List[Cmd]) -> None:
     # 后续对每个命令的类型检查保持不变……
     for cmd in cmds:
         if isinstance(cmd, ShowCmd):
-            typecheck_command(cmd, global_env)
+            t = type_of_expr(cmd.expr, global_env)
+            cmd.expr.resolved_type = t
         elif isinstance(cmd, LetCmd):
     # 如果目标变量已经声明，则报错
             if isinstance(cmd.lvalue, VarLValue):
@@ -369,6 +383,7 @@ def typecheck_program(cmds: List[Cmd]) -> None:
                 if cmd.lvalue.name in RESERVED:
                     raise TypeError(f"Cannot declare reserved variable {cmd.lvalue.name}")
             elif isinstance(cmd.lvalue, ArrayLValue):
+        # 检查主变量和下标是否存在冲突
                 if cmd.lvalue.array in global_env.vars:
                     raise TypeError(f"Duplicate declaration of variable {cmd.lvalue.array}")
                 if cmd.lvalue.array in cmd.lvalue.indices:

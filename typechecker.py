@@ -220,37 +220,48 @@ def type_of_expr(expr: Expr, env: Env) -> TypeNode:
     else:
         raise TypeError(f"Type checking not implemented for node type: {type(expr)}")
 
-
-# --- 语句类型检查 ---
 def typecheck_stmt(stmt: Stmt, env: Env, expected_return: Optional[TypeNode] = None) -> None:
     if isinstance(stmt, LetStmt):
-        t = type_of_expr(stmt.expr, env)
-        stmt.expr.resolved_type = t
         if isinstance(stmt.lvalue, VarLValue):
+            if stmt.lvalue.name in env.vars:
+                raise TypeError(f"Duplicate declaration of variable {stmt.lvalue.name}")
+            t = type_of_expr(stmt.expr, env)
+            stmt.expr.resolved_type = t
             env.vars[stmt.lvalue.name] = t
         elif isinstance(stmt.lvalue, ArrayLValue):
-            var_name = stmt.lvalue.array
-            if var_name not in env.vars:
-                env.vars[var_name] = t
-            else:
-                existing = env.vars[var_name]
-                if not types_equal(existing, t):
-                    raise TypeError("Array assignment type mismatch")
+            # 检查下标列表中是否包含主变量名称
+            if stmt.lvalue.array in stmt.lvalue.indices:
+                raise TypeError(f"Array name {stmt.lvalue.array} cannot be used as an index")
+            # 获取右侧表达式的类型
+            t = type_of_expr(stmt.expr, env)
+            stmt.expr.resolved_type = t
+            # 右侧必须为数组类型
+            if not isinstance(t, ArrayType):
+                raise TypeError("Right-hand side must be an array when using array binding")
+            # 数组的秩必须与下标数量一致
+            if t.dimension != len(stmt.lvalue.indices):
+                raise TypeError(f"Array binding expects {t.dimension} indices, got {len(stmt.lvalue.indices)}")
+            # 检查主变量重复绑定
+            if stmt.lvalue.array in env.vars:
+                raise TypeError(f"Duplicate declaration of variable {stmt.lvalue.array}")
+            env.vars[stmt.lvalue.array] = t
+            # 为每个下标生成 int 类型绑定，且检查重复
             for idx in stmt.lvalue.indices:
-                if idx not in env.vars:
-                    env.vars[idx] = IntType(start_idx=stmt.start_idx)
+                if idx in env.vars:
+                    raise TypeError(f"Duplicate declaration of variable {idx} in array binding")
+                env.vars[idx] = IntType(start_idx=stmt.start_idx)
+        else:
+            raise TypeError("Invalid left value in let statement")
     elif isinstance(stmt, AssertStmt):
         t = type_of_expr(stmt.expr, env)
         if not isinstance(t, BoolType):
             raise TypeError("Assert statement expression must be bool")
-        # 允许空字符串作为错误消息，不再拒绝
     elif isinstance(stmt, ReturnStmt):
         t = type_of_expr(stmt.expr, env)
         if not types_equal(t, expected_return):
             raise TypeError("Return statement type does not match function return type")
     else:
         raise TypeError(f"Type checking not implemented for statement type: {type(stmt)}")
-
 
 def typecheck_command(cmd: Cmd, env: Env) -> None:
     if isinstance(cmd, ShowCmd):
@@ -341,14 +352,18 @@ def typecheck_program(cmds: List[Cmd]) -> None:
             t = type_of_expr(cmd.expr, global_env)
             cmd.expr.resolved_type = t
         elif isinstance(cmd, LetCmd):
+    # 如果目标变量已经声明，则报错
             if isinstance(cmd.lvalue, VarLValue):
                 if cmd.lvalue.name in global_env.vars:
                     raise TypeError(f"Duplicate declaration of variable {cmd.lvalue.name}")
                 if cmd.lvalue.name in RESERVED:
                     raise TypeError(f"Cannot declare reserved variable {cmd.lvalue.name}")
             elif isinstance(cmd.lvalue, ArrayLValue):
+        # 检查主变量和下标是否存在冲突
                 if cmd.lvalue.array in global_env.vars:
                     raise TypeError(f"Duplicate declaration of variable {cmd.lvalue.array}")
+                if cmd.lvalue.array in cmd.lvalue.indices:
+                    raise TypeError(f"Array name {cmd.lvalue.array} cannot be used as an index")
                 if cmd.lvalue.array in RESERVED:
                     raise TypeError(f"Cannot declare reserved variable {cmd.lvalue.array}")
             t = type_of_expr(cmd.value, global_env)
@@ -358,13 +373,36 @@ def typecheck_program(cmds: List[Cmd]) -> None:
             elif isinstance(cmd.lvalue, ArrayLValue):
                 global_env.vars[cmd.lvalue.array] = t
                 for idx in cmd.lvalue.indices:
-                    if idx not in global_env.vars:
-                        global_env.vars[idx] = IntType(start_idx=cmd.start_idx)
+                    if idx in global_env.vars:
+                        raise TypeError(f"Duplicate declaration of variable {idx} in array index")
+                    global_env.vars[idx] = IntType(start_idx=cmd.start_idx)
+
+
         elif isinstance(cmd, FnCmd):
             if cmd.name in global_env.vars:
                 raise TypeError(f"Duplicate declaration of function {cmd.name}")
             if cmd.name in RESERVED:
                 raise TypeError(f"Cannot declare reserved function {cmd.name}")
+    
+    # 检查函数参数中是否有重复名称
+            param_names = set()
+            for binding in cmd.bindings:
+        # 只考虑简单变量或数组绑定的主变量名称（以及数组绑定中的索引名称也不允许重复）
+                if isinstance(binding.lvalue, VarLValue):
+                    if binding.lvalue.name in param_names:
+                        raise TypeError(f"Duplicate parameter name {binding.lvalue.name} in function {cmd.name}")
+                    param_names.add(binding.lvalue.name)
+                elif isinstance(binding.lvalue, ArrayLValue):
+                    if binding.lvalue.array in param_names:
+                        raise TypeError(f"Duplicate parameter name {binding.lvalue.array} in function {cmd.name}")
+                    param_names.add(binding.lvalue.array)
+                    for idx in binding.lvalue.indices:
+                        if idx in param_names:
+                            raise TypeError(f"Duplicate parameter name {idx} in function {cmd.name}")
+                        param_names.add(idx)
+                else:
+                    raise TypeError("Function parameter must be a variable")
+    
             param_types = [binding.type_node for binding in cmd.bindings]
             fn_type = FnType(start_idx=cmd.start_idx, param_types=param_types, return_type=cmd.return_type)
             global_env.vars[cmd.name] = fn_type
@@ -376,10 +414,19 @@ def typecheck_program(cmds: List[Cmd]) -> None:
                     local_env.vars[binding.lvalue.array] = binding.type_node
                     for idx in binding.lvalue.indices:
                         local_env.vars[idx] = IntType(start_idx=binding.lvalue.start_idx)
-                else:
-                    raise TypeError("Function parameter must be a variable")
+    
+    # 类型检查函数体，同时记录是否至少存在一个 return 语句
+            has_return = False
             for stmt in cmd.body:
+                if isinstance(stmt, ReturnStmt):
+                    has_return = True
                 typecheck_stmt(stmt, local_env, expected_return=cmd.return_type)
+    
+    # 如果函数的返回类型不是 void，且函数体中没有 return 语句，则报错
+            if not has_return and not isinstance(cmd.return_type, VoidType):
+                raise TypeError(f"Function {cmd.name} with non-void return type must contain at least one return statement")
+
+
         elif isinstance(cmd, AssertCmd):
             t = type_of_expr(cmd.expr, global_env)
             if not isinstance(t, BoolType):

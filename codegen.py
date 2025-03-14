@@ -121,11 +121,10 @@ class CodeGenerator:
             self.jump_counter += 1
             self.generated_code.append("_jump" + str(self.jump_counter - 2) + ":;");
             false_temp = self.gen_expr(expr.else_branch)
-            self.generated_code.append(f"{result_temp} = {false_temp};");
+            self.generated_code.append(f"{result_temp} = {false_temp};")
             self.generated_code.append("_jump" + str(self.jump_counter - 1) + ":;");
             return result_temp
         elif isinstance(expr, ArrayIndexExpr):
-            # 对单一索引表达式，使用全局 jump_counter 生成唯一跳转标签
             array_temp = self.gen_expr(expr.array)
             if len(expr.indexes) == 1:
                 idx_var = self.gen_expr(expr.indexes[0])
@@ -246,7 +245,6 @@ class CodeGenerator:
             self.struct_field_map[cmd.name] = field_types
         else:
             self.generated_code.append(f"// Unhandled command: {cmd.to_s_expression()}")
-
     def generate(self, cmds: List[Cmd]) -> str:
         self.temp_counter = 0
         self.jump_counter = 1
@@ -270,16 +268,10 @@ class CodeGenerator:
             if tn not in self.used_array_typedef_keys:
                 filtered_array_typedefs[tn] = def_str
         custom_order = []
-        if "_a1_int64_t" in filtered_array_typedefs:
-            custom_order.append("_a1_int64_t")
-        if "_a1__a1_rgba" in filtered_array_typedefs:
-            custom_order.append("_a1__a1_rgba")
-        if "_a1_double" in filtered_array_typedefs:
-            custom_order.append("_a1_double")
-        if "_a1_rgba" in filtered_array_typedefs:
-            custom_order.append("_a1_rgba")
-        if "_a1_bool" in filtered_array_typedefs:
-            custom_order.append("_a1_bool")
+        desired_order = ["_a2_a", "_a1_bool", "_a1__a1_bool", "_a1__a1__a1_bool", "_a1_int64_t"]
+        for tn in desired_order:
+            if tn in filtered_array_typedefs:
+                custom_order.append(tn)
         for tn in filtered_array_typedefs:
             if tn not in custom_order:
                 custom_order.append(tn)
@@ -299,6 +291,8 @@ class CodeGenerator:
         final_code = "\n".join([header, void_typedef, struct_typedefs_code, array_typedefs_code, jpl_main])
         final_code += "\nCompilation succeeded"
         return final_code
+
+
 
 def generate_c_code(ast_cmds: List[Cmd]) -> str:
     cg = CodeGenerator()

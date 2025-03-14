@@ -254,30 +254,66 @@ class CodeGenerator:
         self.struct_field_map = {}
         self.used_array_typedef_keys = set()
         self.env = {}
+        # 记录数组 typedef 的创建顺序（列表中存放键）
+        created_array_order = []
+
+        # 当生成结构体时，如果遇到数组类型，会调用 c_type 并且我们记录下键
+        original_c_type = self.c_type
+        def my_c_type(type_node):
+            if isinstance(type_node, ArrayType):
+                elem = self.c_type(type_node.element_type)
+                rank = type_node.dimension
+                typedef_name = f"_a{rank}_{elem.replace(' ', '_')}"
+                if typedef_name not in self.array_typedefs:
+                    lines = []
+                    lines.append("typedef struct {")
+                    for i in range(0, rank):
+                        lines.append(f"    int64_t d{i};")
+                    lines.append(f"    {elem} *data;")
+                    lines.append(f"}} {typedef_name};")
+                    self.array_typedefs[typedef_name] = "\n".join(lines)
+                    # 记录创建顺序
+                    created_array_order.append(typedef_name)
+                return typedef_name
+            else:
+                return original_c_type(type_node)
+        # 替换 c_type 方法
+        self.c_type = my_c_type
+
+        # 先生成所有结构体命令
         for cmd in cmds:
             if isinstance(cmd, StructCmd):
                 self.generate_command(cmd)
+        # 再生成其它命令
         for cmd in cmds:
             if not isinstance(cmd, StructCmd):
                 self.generate_command(cmd)
+
+        # 组装结构体定义（保持生成顺序）
         struct_typedefs_code = "\n\n".join(self.struct_typedefs)
         if struct_typedefs_code:
             struct_typedefs_code = "\n" + struct_typedefs_code
+
+        # 过滤掉那些已经嵌入到结构体定义中的数组 typedef
         filtered_array_typedefs = {}
         for tn, def_str in self.array_typedefs.items():
             if tn not in self.used_array_typedef_keys:
                 filtered_array_typedefs[tn] = def_str
+
+        # 按照创建顺序输出数组 typedef，同时对依赖关系做简单调整：
+        # 如果 _a1__a1_rgba 出现在列表中，则将其移动到最后（因为它依赖 _a1_rgba）
         custom_order = []
-        desired_order = ["_a2_a", "_a1_bool", "_a1__a1_bool", "_a1__a1__a1_bool", "_a1_int64_t"]
-        for tn in desired_order:
+        for tn in created_array_order:
             if tn in filtered_array_typedefs:
                 custom_order.append(tn)
-        for tn in filtered_array_typedefs:
-            if tn not in custom_order:
-                custom_order.append(tn)
+        # 对于 _a1__a1_rgba，如果存在，则将其移到列表末尾
+        if "_a1__a1_rgba" in custom_order:
+            custom_order.remove("_a1__a1_rgba")
+            custom_order.append("_a1__a1_rgba")
         array_typedefs_code = "\n\n".join(filtered_array_typedefs[tn] for tn in custom_order)
         if array_typedefs_code:
             array_typedefs_code = "\n" + array_typedefs_code
+
         header = (
             '#include <math.h>\n'
             '#include <stdbool.h>\n'

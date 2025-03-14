@@ -113,20 +113,22 @@ class CodeGenerator:
             result_type = self.c_type(expr.then_branch.resolved_type)
             self.generated_code.append(f"{result_type} {result_temp};")
             self.generated_code.append(f"if (!{cond_temp})")
-            self.generated_code.append("goto _jump1;");
+            self.generated_code.append("goto _jump" + str(self.jump_counter) + ";")
+            self.jump_counter += 1
             true_temp = self.gen_expr(expr.then_branch)
-            self.generated_code.append(f"{result_temp} = {true_temp};");
-            self.generated_code.append("goto _jump2;");
-            self.generated_code.append("_jump1:;");
+            self.generated_code.append(f"{result_temp} = {true_temp};")
+            self.generated_code.append("goto _jump" + str(self.jump_counter) + ";")
+            self.jump_counter += 1
+            self.generated_code.append("_jump" + str(self.jump_counter - 2) + ":;");
             false_temp = self.gen_expr(expr.else_branch)
             self.generated_code.append(f"{result_temp} = {false_temp};");
-            self.generated_code.append("_jump2:;");
+            self.generated_code.append("_jump" + str(self.jump_counter - 1) + ":;");
             return result_temp
         elif isinstance(expr, ArrayIndexExpr):
+            # 对单一索引表达式，使用全局 jump_counter 生成唯一跳转标签
             array_temp = self.gen_expr(expr.array)
             if len(expr.indexes) == 1:
                 idx_var = self.gen_expr(expr.indexes[0])
-
                 neg_label = f"_jump{self.jump_counter}"
                 self.jump_counter += 1
                 upper_label = f"_jump{self.jump_counter}"
@@ -151,8 +153,6 @@ class CodeGenerator:
                 temp = self.new_temp()
                 self.generated_code.append(f"/* unhandled multi-index ArrayIndexExpr: {expr.to_s_expression()} */")
                 return temp
-
-
         elif isinstance(expr, ArrayLiteralExpr):
             element_temps = []
             for element in expr.elements:
@@ -161,11 +161,11 @@ class CodeGenerator:
             ctyp = self.c_type(expr.resolved_type)
             elem_type = self.c_type(expr.resolved_type.element_type)
             n = len(element_temps)
-            self.generated_code.append(f"{ctyp} {temp};");
-            self.generated_code.append(f"{temp}.d0 = {n};");
-            self.generated_code.append(f"{temp}.data = jpl_alloc(sizeof({elem_type}) * {n});");
+            self.generated_code.append(f"{ctyp} {temp};")
+            self.generated_code.append(f"{temp}.d0 = {n};")
+            self.generated_code.append(f"{temp}.data = jpl_alloc(sizeof({elem_type}) * {n});")
             for idx, et in enumerate(element_temps):
-                self.generated_code.append(f"{temp}.data[{idx}] = {et};");
+                self.generated_code.append(f"{temp}.data[{idx}] = {et};")
             return temp
         elif isinstance(expr, StructLiteralExpr):
             field_temps = []
@@ -173,10 +173,9 @@ class CodeGenerator:
                 field_temps.append(self.gen_expr(field))
             temp = self.new_temp()
             init = ", ".join(field_temps)
-            self.generated_code.append(f"{expr.struct_name} {temp} = {{ {init} }};");
+            self.generated_code.append(f"{expr.struct_name} {temp} = {{ {init} }};")
             return temp
         elif isinstance(expr, CallExpr):
-            # 新增 CallExpr 分支：生成函数调用代码
             func_temp = self.gen_expr(expr.function)
             arg_temps = []
             for arg in expr.arguments:
@@ -187,7 +186,7 @@ class CodeGenerator:
             return temp
         else:
             temp = self.new_temp()
-            self.generated_code.append(f"/* unhandled expr: {expr.to_s_expression()} */");
+            self.generated_code.append(f"/* unhandled expr: {expr.to_s_expression()} */")
             return temp
 
     def generate_lvalue(self, lval: LValue) -> str:
@@ -213,9 +212,10 @@ class CodeGenerator:
         elif isinstance(cmd, AssertCmd):
             expr_temp = self.gen_expr(cmd.expr)
             self.generated_code.append(f"if (0 != {expr_temp})")
-            self.generated_code.append("goto _jump1;")
+            self.generated_code.append("goto _jump" + str(self.jump_counter) + ";")
+            self.jump_counter += 1
             self.generated_code.append(f'fail_assertion("{cmd.message}");')
-            self.generated_code.append("_jump1:;")
+            self.generated_code.append("_jump" + str(self.jump_counter - 1) + ":;")
         elif isinstance(cmd, ShowCmd):
             temp = self.gen_expr(cmd.expr)
             stype = cmd.expr.resolved_type
@@ -272,8 +272,14 @@ class CodeGenerator:
         custom_order = []
         if "_a1_int64_t" in filtered_array_typedefs:
             custom_order.append("_a1_int64_t")
-        if "_a1__a1_int64_t" in filtered_array_typedefs:
-            custom_order.append("_a1__a1_int64_t")
+        if "_a1__a1_rgba" in filtered_array_typedefs:
+            custom_order.append("_a1__a1_rgba")
+        if "_a1_double" in filtered_array_typedefs:
+            custom_order.append("_a1_double")
+        if "_a1_rgba" in filtered_array_typedefs:
+            custom_order.append("_a1_rgba")
+        if "_a1_bool" in filtered_array_typedefs:
+            custom_order.append("_a1_bool")
         for tn in filtered_array_typedefs:
             if tn not in custom_order:
                 custom_order.append(tn)

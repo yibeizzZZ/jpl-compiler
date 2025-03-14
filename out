@@ -66,9 +66,9 @@ void jpl_main(struct args args) {
     _7 += _6;
     bool _8 = _1.data[_7];
     if (0 != _8)
-    goto _jump1;
+    goto _jump3;
     fail_assertion("b");
-    _jump1:;
+    _jump3:;
     int64_t _9 = 689;
     int64_t _10 = 469;
     int64_t _11 = -_10;
@@ -79,13 +79,13 @@ void jpl_main(struct args args) {
     int64_t _13 = 840;
     int64_t _14 = -_13;
     if (_14 >= 0)
-    goto _jump3;
-    fail_assertion("negative array index");
-    _jump3:;
-    if (_14 < _12.d0)
     goto _jump4;
-    fail_assertion("index too large");
+    fail_assertion("negative array index");
     _jump4:;
+    if (_14 < _12.d0)
+    goto _jump5;
+    fail_assertion("index too large");
+    _jump5:;
     int64_t _15 = 0;
     _15 *= _12.d0;
     _15 += _14;
@@ -97,9 +97,9 @@ void jpl_main(struct args args) {
     int64_t _21 = -_20;
     bool _22 = _19 < _21;
     if (0 != _22)
-    goto _jump1;
+    goto _jump6;
     fail_assertion("c");
-    _jump1:;
+    _jump6:;
     double _23 = 15.0;
     double _24 = -_23;
     _a1_double _25;

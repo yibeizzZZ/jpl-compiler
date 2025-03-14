@@ -147,6 +147,23 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Compilation failed, {e}")
             sys.exit(1)
+    
+    elif sys.argv[1] == "-i":
+        # 新增的代码生成分支
+        filename = sys.argv[2]
+        try:
+            with open(filename, "r", encoding="utf-8") as f:
+                source_code = f.read()
+            tokens = lex(source_code)
+            parser = Parser(tokens)
+            ast = parser.parse_program()
+            typecheck_program(ast)  # 进行类型检查
+            from codegen import generate_c_code
+            c_code = generate_c_code(ast)
+            print(c_code)
+        except Exception as e:
+            print("Compilation failed,", e)
+            sys.exit(1)
 
     else:
         print("unknown flag")

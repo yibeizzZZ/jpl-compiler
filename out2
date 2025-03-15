@@ -1,0 +1,6 @@
+make -C ./grader DIR=/root/CS4470HWs PART=1 test-hw8
+make[1]: Entering directory '/root/CS4470HWs/grader'
+Homework 8 part 1 ......................................................
+....................................
+Passed 90/90 = 100.0% tests
+make[1]: Leaving directory '/root/CS4470HWs/grader'

@@ -1,110 +1,2908 @@
-python3 compiler.py -i grader/hw8/ok-fuzzer/001.jpl
-#include <math.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include "rt/runtime.h"
+make -C ./grader DIR=/root/CS4470HWs PART=1 test-hw9
+make[1]: Entering directory '/root/CS4470HWs/grader'
+Homework 9 part 1 ....................W
+021.jpl: 15 lines differ
+======= Standard Out: =======
+*** 021.jpl.expected
+--- Your compiler
+***************
+*** 5,23 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! int64_t _3 = 1
+! _0 += _3
+! _2++
+! if (_2 < _1)
+! goto _jump2
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) (IntExpr 1)) */
+  show("(IntType)", &_0)
+  }
 
-typedef struct { } void_t;
+=======================
+W
+022.jpl: 15 lines differ
+======= Standard Out: =======
+*** 022.jpl.expected
+--- Your compiler
+***************
+*** 5,23 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! double _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! double _3 = 1.0
+! _0 += _3
+! _2++
+! if (_2 < _1)
+! goto _jump2
+  show("(FloatType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) (FloatExpr 1)) */
+  show("(FloatType)", &_0)
+  }
 
+=======================
+W
+023.jpl: 14 lines differ
+======= Standard Out: =======
+*** 023.jpl.expected
+--- Your compiler
+***************
+*** 5,22 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! _0 += _2
+! _2++
+! if (_2 < _1)
+! goto _jump2
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) (VarExpr i)) */
+  show("(IntType)", &_0)
+  }
 
-typedef struct {
-    rgba a;
-    void_t b;
-} a;
+=======================
+W
+024.jpl: 18 lines differ
+======= Standard Out: =======
+*** 024.jpl.expected
+--- Your compiler
+***************
+*** 5,26 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! double _0
+! double _1 = 2.0
+! double _2 = exp(_1)
+! int64_t _3 = to_int(_2)
+! if (_3 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! _0 = 0
+! int64_t _4 = 0
+! _jump2:
+! double _5 = to_float(_4)
+! double _6 = sin(_5)
+! _0 += _6
+! _4++
+! if (_4 < _3)
+! goto _jump2
+  show("(FloatType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (CallExpr to_int (CallExpr exp (FloatExpr 2))) (CallExpr sin (CallExpr to_float (VarExpr i)))) */
+  show("(FloatType)", &_0)
+  }
 
-typedef struct {
-    int64_t d0;
-    _a1_rgba *data;
-} _a1__a1_rgba;
+=======================
+W
+025.jpl: 17 lines differ
+======= Standard Out: =======
+*** 025.jpl.expected
+--- Your compiler
+***************
+*** 5,25 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! double _0
+! int64_t _1 = 1
+! int64_t _2 = -_1
+! if (_2 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! _0 = 0
+! int64_t _3 = 0
+! _jump2:
+! double _4 = to_float(_3)
+! double _5 = sin(_4)
+! _0 += _5
+! _3++
+! if (_3 < _2)
+! goto _jump2
+  show("(FloatType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (UnopExpr - (IntExpr 1)) (CallExpr sin (CallExpr to_float (VarExpr i)))) */
+  show("(FloatType)", &_0)
+  }
 
-typedef struct {
-    a a;
-    _a1__a1_rgba b;
-} f;
+=======================
+W
+026.jpl: 16 lines differ
+======= Standard Out: =======
+*** 026.jpl.expected
+--- Your compiler
+***************
+*** 5,24 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! double _0
+! int64_t _1 = 0
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! double _3 = to_float(_2)
+! double _4 = sin(_3)
+! _0 += _4
+! _2++
+! if (_2 < _1)
+! goto _jump2
+  show("(FloatType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 0) (CallExpr sin (CallExpr to_float (VarExpr i)))) */
+  show("(FloatType)", &_0)
+  }
 
-typedef struct {
-    int64_t d0;
-    rgba *data;
-} _a1_rgba;
+=======================
+W
+027.jpl: 25 lines differ
+======= Standard Out: =======
+*** 027.jpl.expected
+--- Your compiler
+***************
+*** 5,33 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! _0 = 0
+! int64_t _3 = 0
+! int64_t _4 = 0
+! _jump3:
+! int64_t _5 = 1
+! _0 += _5
+! _3++
+! if (_3 < _2)
+! goto _jump3
+! _3 = 0
+! _4++
+! if (_4 < _1)
+! goto _jump3
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 10) (IntExpr 1)) */
+  show("(IntType)", &_0)
+  }
 
-typedef struct {
-    int64_t d0;
-    bool *data;
-} _a1_bool;
+=======================
+W
+028.jpl: 27 lines differ
+======= Standard Out: =======
+*** 028.jpl.expected
+--- Your compiler
+***************
+*** 5,35 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! _0 = 0
+! int64_t _3 = 0
+! int64_t _4 = 0
+! _jump3:
+! int64_t _5 = 10
+! int64_t _6 = _5 * _4
+! int64_t _7 = _6 + _3
+! _0 += _7
+! _3++
+! if (_3 < _2)
+! goto _jump3
+! _3 = 0
+! _4++
+! if (_4 < _1)
+! goto _jump3
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 10) (BinopExpr (BinopExpr (IntExpr 10) * (VarExpr i)) + (VarExpr j))) */
+  show("(IntType)", &_0)
+  }
 
-typedef struct {
-    int64_t d0;
-    int64_t *data;
-} _a1_int64_t;
+=======================
+W
+029.jpl: 29 lines differ
+======= Standard Out: =======
+*** 029.jpl.expected
+--- Your compiler
+***************
+*** 5,37 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! double _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! _0 = 0
+! int64_t _3 = 0
+! int64_t _4 = 0
+! _jump3:
+! double _5 = to_float(_4)
+! double _6 = 1.0
+! double _7 = _5 + _6
+! double _8 = to_float(_3)
+! double _9 = pow(_7, _8)
+! _0 += _9
+! _3++
+! if (_3 < _2)
+! goto _jump3
+! _3 = 0
+! _4++
+! if (_4 < _1)
+! goto _jump3
+  show("(FloatType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 10) (CallExpr pow (BinopExpr (CallExpr to_float (VarExpr i)) + (FloatExpr 1)) (CallExpr to_float (VarExpr j)))) */
+  show("(FloatType)", &_0)
+  }
 
-typedef struct {
-    int64_t d0;
-    double *data;
-} _a1_double;
-void jpl_main(struct args args) {
-    bool _0 = false;
-    _a1_bool _1;
-    _1.d0 = 1;
-    _1.data = jpl_alloc(sizeof(bool) * 1);
-    _1.data[0] = _0;
-    int64_t _2 = 937;
-    int64_t _3 = -_2;
-    int64_t _4 = 290;
-    int64_t _5 = _3 - _4;
-    int64_t _6 = -_5;
-    if (_6 >= 0)
-    goto _jump1;
-    fail_assertion("negative array index");
-    _jump1:;
-    if (_6 < _1.d0)
-    goto _jump2;
-    fail_assertion("index too large");
-    _jump2:;
-    int64_t _7 = 0;
-    _7 *= _1.d0;
-    _7 += _6;
-    bool _8 = _1.data[_7];
-    if (0 != _8)
-    goto _jump3;
-    fail_assertion("b");
-    _jump3:;
-    int64_t _9 = 689;
-    int64_t _10 = 469;
-    int64_t _11 = -_10;
-    _a1_int64_t _12;
-    _12.d0 = 1;
-    _12.data = jpl_alloc(sizeof(int64_t) * 1);
-    _12.data[0] = _11;
-    int64_t _13 = 840;
-    int64_t _14 = -_13;
-    if (_14 >= 0)
-    goto _jump4;
-    fail_assertion("negative array index");
-    _jump4:;
-    if (_14 < _12.d0)
-    goto _jump5;
-    fail_assertion("index too large");
-    _jump5:;
-    int64_t _15 = 0;
-    _15 *= _12.d0;
-    _15 += _14;
-    int64_t _16 = _12.data[_15];
-    bool _17 = _9 != _16;
-    int64_t _18 = 144;
-    int64_t _19 = -_18;
-    int64_t _20 = 794;
-    int64_t _21 = -_20;
-    bool _22 = _19 < _21;
-    if (0 != _22)
-    goto _jump6;
-    fail_assertion("c");
-    _jump6:;
-    double _23 = 15.0;
-    double _24 = -_23;
-    _a1_double _25;
-    _25.d0 = 1;
-    _25.data = jpl_alloc(sizeof(double) * 1);
-    _25.data[0] = _24;
-}
-Compilation succeeded
+=======================
+W
+030.jpl: 25 lines differ
+======= Standard Out: =======
+*** 030.jpl.expected
+--- Your compiler
+***************
+*** 5,33 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 10
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 0
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! _0 = 0
+! int64_t _3 = 0
+! int64_t _4 = 0
+! _jump3:
+! int64_t _5 = 1
+! _0 += _5
+! _3++
+! if (_3 < _2)
+! goto _jump3
+! _3 = 0
+! _4++
+! if (_4 < _1)
+! goto _jump3
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 0) (IntExpr 1)) */
+  show("(IntType)", &_0)
+  }
+
+=======================
+W
+031.jpl: 25 lines differ
+======= Standard Out: =======
+*** 031.jpl.expected
+--- Your compiler
+***************
+*** 5,33 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 0
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! _0 = 0
+! int64_t _3 = 0
+! int64_t _4 = 0
+! _jump3:
+! int64_t _5 = 1
+! _0 += _5
+! _3++
+! if (_3 < _2)
+! goto _jump3
+! _3 = 0
+! _4++
+! if (_4 < _1)
+! goto _jump3
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 0) j (IntExpr 10) (IntExpr 1)) */
+  show("(IntType)", &_0)
+  }
+
+=======================
+W
+032.jpl: 25 lines differ
+======= Standard Out: =======
+*** 032.jpl.expected
+--- Your compiler
+***************
+*** 5,33 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 65536
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 65536
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! _0 = 0
+! int64_t _3 = 0
+! int64_t _4 = 0
+! _jump3:
+! int64_t _5 = _4 * _3
+! _0 += _5
+! _3++
+! if (_3 < _2)
+! goto _jump3
+! _3 = 0
+! _4++
+! if (_4 < _1)
+! goto _jump3
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 65536) j (IntExpr 65536) (BinopExpr (VarExpr i) * (VarExpr j))) */
+  show("(IntType)", &_0)
+  }
+
+=======================
+W
+033.jpl: 47 lines differ
+======= Standard Out: =======
+*** 033.jpl.expected
+--- Your compiler
+***************
+*** 5,55 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 65536
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 65536
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 65536
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 65536
+! if (_4 > 0)
+! goto _jump4
+! fail_assertion("non-positive loop bound")
+! _jump4:
+! _0 = 0
+! int64_t _5 = 0
+! int64_t _6 = 0
+! int64_t _7 = 0
+! int64_t _8 = 0
+! _jump5:
+! int64_t _9 = _8 + _7
+! int64_t _10 = _9 + _6
+! int64_t _11 = _10 + _5
+! _0 += _11
+! _5++
+! if (_5 < _4)
+! goto _jump5
+! _5 = 0
+! _6++
+! if (_6 < _3)
+! goto _jump5
+! _6 = 0
+! _7++
+! if (_7 < _2)
+! goto _jump5
+! _7 = 0
+! _8++
+! if (_8 < _1)
+! goto _jump5
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 65536) j (IntExpr 65536) k (IntExpr 65536) l (IntExpr 65536) (BinopExpr (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k)) + (VarExpr l))) */
+  show("(IntType)", &_0)
+  }
+
+=======================
+W
+034.jpl: 47 lines differ
+======= Standard Out: =======
+*** 034.jpl.expected
+--- Your compiler
+***************
+*** 5,55 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! int64_t _0
+! int64_t _1 = 65537
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 65537
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 65537
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 65537
+! if (_4 > 0)
+! goto _jump4
+! fail_assertion("non-positive loop bound")
+! _jump4:
+! _0 = 0
+! int64_t _5 = 0
+! int64_t _6 = 0
+! int64_t _7 = 0
+! int64_t _8 = 0
+! _jump5:
+! int64_t _9 = _8 + _7
+! int64_t _10 = _9 + _6
+! int64_t _11 = _10 + _5
+! _0 += _11
+! _5++
+! if (_5 < _4)
+! goto _jump5
+! _5 = 0
+! _6++
+! if (_6 < _3)
+! goto _jump5
+! _6 = 0
+! _7++
+! if (_7 < _2)
+! goto _jump5
+! _7 = 0
+! _8++
+! if (_8 < _1)
+! goto _jump5
+  show("(IntType)", &_0)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (SumLoopExpr i (IntExpr 65537) j (IntExpr 65537) k (IntExpr 65537) l (IntExpr 65537) (BinopExpr (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k)) + (VarExpr l))) */
+  show("(IntType)", &_0)
+  }
+
+=======================
+W
+035.jpl: 26 lines differ
+======= Standard Out: =======
+*** 035.jpl.expected
+--- Your compiler
+***************
+*** 4,34 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t *data
+- } _a1_int64_t
+  void jpl_main(struct args args) {
+! _a1_int64_t _0
+! int64_t _1 = 10
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 1
+! _2 *= _1
+! _2 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_2)
+! int64_t _3 = 0
+! _jump2:
+! int64_t _4 = 0
+! int64_t _5 = 0
+! _5 *= _0.d0
+! _5 += _3
+! _0.data[_5] = _4
+! _3++
+! if (_3 < _1)
+! goto _jump2
+  show("(ArrayType (IntType) 1)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 10) (IntExpr 0)) */
+  show("(ArrayType (IntType) 1)", &_0)
+  }
+
+=======================
+W
+036.jpl: 25 lines differ
+======= Standard Out: =======
+*** 036.jpl.expected
+--- Your compiler
+***************
+*** 4,33 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t *data
+- } _a1_int64_t
+  void jpl_main(struct args args) {
+! _a1_int64_t _0
+! int64_t _1 = 10
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 1
+! _2 *= _1
+! _2 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_2)
+! int64_t _3 = 0
+! _jump2:
+! int64_t _4 = 0
+! _4 *= _0.d0
+! _4 += _3
+! _0.data[_4] = _3
+! _3++
+! if (_3 < _1)
+! goto _jump2
+  show("(ArrayType (IntType) 1)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 10) (VarExpr i)) */
+  show("(ArrayType (IntType) 1)", &_0)
+  }
+
+=======================
+W
+037.jpl: 41 lines differ
+======= Standard Out: =======
+*** 037.jpl.expected
+--- Your compiler
+***************
+*** 4,49 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t *data
+- } _a2_int64_t
+  void jpl_main(struct args args) {
+! _a2_int64_t _0
+! int64_t _1 = 10
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 1
+! _3 *= _1
+! _3 *= _2
+! _3 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_3)
+! int64_t _4 = 0
+! int64_t _5 = 0
+! _jump3:
+! int64_t _6 = _5 + _4
+! int64_t _7 = 0
+! _7 *= _0.d0
+! _7 += _5
+! _7 *= _0.d1
+! _7 += _4
+! _0.data[_7] = _6
+! _4++
+! if (_4 < _2)
+! goto _jump3
+! _4 = 0
+! _5++
+! if (_5 < _1)
+! goto _jump3
+  show("(ArrayType (IntType) 2)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 10) j (IntExpr 10) (BinopExpr (VarExpr i) + (VarExpr j))) */
+  show("(ArrayType (IntType) 2)", &_0)
+  }
+
+=======================
+W
+038.jpl: 57 lines differ
+======= Standard Out: =======
+*** 038.jpl.expected
+--- Your compiler
+***************
+*** 4,65 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t d2
+- int64_t *data
+- } _a3_int64_t
+  void jpl_main(struct args args) {
+! _a3_int64_t _0
+! int64_t _1 = 10
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 10
+! _0.d2 = _3
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 1
+! _4 *= _1
+! _4 *= _2
+! _4 *= _3
+! _4 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_4)
+! int64_t _5 = 0
+! int64_t _6 = 0
+! int64_t _7 = 0
+! _jump4:
+! int64_t _8 = _7 + _6
+! int64_t _9 = _8 + _5
+! int64_t _10 = 0
+! _10 *= _0.d0
+! _10 += _7
+! _10 *= _0.d1
+! _10 += _6
+! _10 *= _0.d2
+! _10 += _5
+! _0.data[_10] = _9
+! _5++
+! if (_5 < _3)
+! goto _jump4
+! _5 = 0
+! _6++
+! if (_6 < _2)
+! goto _jump4
+! _6 = 0
+! _7++
+! if (_7 < _1)
+! goto _jump4
+  show("(ArrayType (IntType) 3)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 10) j (IntExpr 10) k (IntExpr 10) (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k))) */
+  show("(ArrayType (IntType) 3)", &_0)
+  }
+
+=======================
+W
+039.jpl: 73 lines differ
+======= Standard Out: =======
+*** 039.jpl.expected
+--- Your compiler
+***************
+*** 4,81 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t d2
+- int64_t d3
+- int64_t *data
+- } _a4_int64_t
+  void jpl_main(struct args args) {
+! _a4_int64_t _0
+! int64_t _1 = 10
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 10
+! _0.d2 = _3
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 10
+! _0.d3 = _4
+! if (_4 > 0)
+! goto _jump4
+! fail_assertion("non-positive loop bound")
+! _jump4:
+! int64_t _5 = 1
+! _5 *= _1
+! _5 *= _2
+! _5 *= _3
+! _5 *= _4
+! _5 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_5)
+! int64_t _6 = 0
+! int64_t _7 = 0
+! int64_t _8 = 0
+! int64_t _9 = 0
+! _jump5:
+! int64_t _10 = _9 + _8
+! int64_t _11 = _10 + _7
+! int64_t _12 = _11 + _6
+! int64_t _13 = 0
+! _13 *= _0.d0
+! _13 += _9
+! _13 *= _0.d1
+! _13 += _8
+! _13 *= _0.d2
+! _13 += _7
+! _13 *= _0.d3
+! _13 += _6
+! _0.data[_13] = _12
+! _6++
+! if (_6 < _4)
+! goto _jump5
+! _6 = 0
+! _7++
+! if (_7 < _3)
+! goto _jump5
+! _7 = 0
+! _8++
+! if (_8 < _2)
+! goto _jump5
+! _8 = 0
+! _9++
+! if (_9 < _1)
+! goto _jump5
+  show("(ArrayType (IntType) 4)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 10) j (IntExpr 10) k (IntExpr 10) l (IntExpr 10) (BinopExpr (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k)) + (VarExpr l))) */
+  show("(ArrayType (IntType) 4)", &_0)
+  }
+
+=======================
+W
+040.jpl: 73 lines differ
+======= Standard Out: =======
+*** 040.jpl.expected
+--- Your compiler
+***************
+*** 10,85 ****
+  int64_t c
+  int64_t d
+  } iiii
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t d2
+- int64_t d3
+- iiii *data
+- } _a4_iiii
+  void jpl_main(struct args args) {
+! _a4_iiii _0
+! int64_t _1 = 10
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 10
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 10
+! _0.d2 = _3
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 10
+! _0.d3 = _4
+! if (_4 > 0)
+! goto _jump4
+! fail_assertion("non-positive loop bound")
+! _jump4:
+! int64_t _5 = 1
+! _5 *= _1
+! _5 *= _2
+! _5 *= _3
+! _5 *= _4
+! _5 *= sizeof(iiii)
+! _0.data = jpl_alloc(_5)
+! int64_t _6 = 0
+! int64_t _7 = 0
+! int64_t _8 = 0
+! int64_t _9 = 0
+! _jump5:
+! iiii _10 = { _9, _8, _7, _6 }
+! int64_t _11 = 0
+! _11 *= _0.d0
+! _11 += _9
+! _11 *= _0.d1
+! _11 += _8
+! _11 *= _0.d2
+! _11 += _7
+! _11 *= _0.d3
+! _11 += _6
+! _0.data[_11] = _10
+! _6++
+! if (_6 < _4)
+! goto _jump5
+! _6 = 0
+! _7++
+! if (_7 < _3)
+! goto _jump5
+! _7 = 0
+! _8++
+! if (_8 < _2)
+! goto _jump5
+! _8 = 0
+! _9++
+! if (_9 < _1)
+! goto _jump5
+! show("(ArrayType (TupleType (IntType) (IntType) (IntType) (IntType)) 4)", &_0)
+  }
+--- 10,16 ----
+  int64_t c
+  int64_t d
+  } iiii
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 10) j (IntExpr 10) k (IntExpr 10) l (IntExpr 10) (StructLiteralExpr iiii (VarExpr i) (VarExpr j) (VarExpr k) (VarExpr l))) */
+! show("(ArrayType (StructType iiii) 4)", &_0)
+  }
+
+=======================
+W
+041.jpl: 73 lines differ
+======= Standard Out: =======
+*** 041.jpl.expected
+--- Your compiler
+***************
+*** 4,81 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t d2
+- int64_t d3
+- int64_t *data
+- } _a4_int64_t
+  void jpl_main(struct args args) {
+! _a4_int64_t _0
+! int64_t _1 = 65536
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 65536
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 65536
+! _0.d2 = _3
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 65536
+! _0.d3 = _4
+! if (_4 > 0)
+! goto _jump4
+! fail_assertion("non-positive loop bound")
+! _jump4:
+! int64_t _5 = 1
+! _5 *= _1
+! _5 *= _2
+! _5 *= _3
+! _5 *= _4
+! _5 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_5)
+! int64_t _6 = 0
+! int64_t _7 = 0
+! int64_t _8 = 0
+! int64_t _9 = 0
+! _jump5:
+! int64_t _10 = _9 + _8
+! int64_t _11 = _10 + _7
+! int64_t _12 = _11 + _6
+! int64_t _13 = 0
+! _13 *= _0.d0
+! _13 += _9
+! _13 *= _0.d1
+! _13 += _8
+! _13 *= _0.d2
+! _13 += _7
+! _13 *= _0.d3
+! _13 += _6
+! _0.data[_13] = _12
+! _6++
+! if (_6 < _4)
+! goto _jump5
+! _6 = 0
+! _7++
+! if (_7 < _3)
+! goto _jump5
+! _7 = 0
+! _8++
+! if (_8 < _2)
+! goto _jump5
+! _8 = 0
+! _9++
+! if (_9 < _1)
+! goto _jump5
+  show("(ArrayType (IntType) 4)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 65536) j (IntExpr 65536) k (IntExpr 65536) l (IntExpr 65536) (BinopExpr (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k)) + (VarExpr l))) */
+  show("(ArrayType (IntType) 4)", &_0)
+  }
+
+=======================
+W
+042.jpl: 71 lines differ
+======= Standard Out: =======
+*** 042.jpl.expected
+--- Your compiler
+***************
+*** 4,79 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t d2
+- int64_t d3
+- int64_t *data
+- } _a4_int64_t
+  void jpl_main(struct args args) {
+! _a4_int64_t _0
+! int64_t _1 = 17
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 241
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 61681
+! _0.d2 = _3
+! if (_3 > 0)
+! goto _jump3
+! fail_assertion("non-positive loop bound")
+! _jump3:
+! int64_t _4 = 4562284561
+! _0.d3 = _4
+! if (_4 > 0)
+! goto _jump4
+! fail_assertion("non-positive loop bound")
+! _jump4:
+! int64_t _5 = 1
+! _5 *= _1
+! _5 *= _2
+! _5 *= _3
+! _5 *= _4
+! _5 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_5)
+! int64_t _6 = 0
+! int64_t _7 = 0
+! int64_t _8 = 0
+! int64_t _9 = 0
+! _jump5:
+! int64_t _10 = 1
+! int64_t _11 = 0
+! _11 *= _0.d0
+! _11 += _9
+! _11 *= _0.d1
+! _11 += _8
+! _11 *= _0.d2
+! _11 += _7
+! _11 *= _0.d3
+! _11 += _6
+! _0.data[_11] = _10
+! _6++
+! if (_6 < _4)
+! goto _jump5
+! _6 = 0
+! _7++
+! if (_7 < _3)
+! goto _jump5
+! _7 = 0
+! _8++
+! if (_8 < _2)
+! goto _jump5
+! _8 = 0
+! _9++
+! if (_9 < _1)
+! goto _jump5
+  show("(ArrayType (IntType) 4)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 17) j (IntExpr 241) k (IntExpr 61681) l (IntExpr 4562284561) (IntExpr 1)) */
+  show("(ArrayType (IntType) 4)", &_0)
+  }
+
+=======================
+W
+043.jpl: 41 lines differ
+======= Standard Out: =======
+*** 043.jpl.expected
+--- Your compiler
+***************
+*** 4,49 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t *data
+- } _a2_int64_t
+  void jpl_main(struct args args) {
+! _a2_int64_t _0
+! int64_t _1 = 3
+! _0.d0 = _1
+! if (_1 > 0)
+! goto _jump1
+! fail_assertion("non-positive loop bound")
+! _jump1:
+! int64_t _2 = 768614336404564651
+! _0.d1 = _2
+! if (_2 > 0)
+! goto _jump2
+! fail_assertion("non-positive loop bound")
+! _jump2:
+! int64_t _3 = 1
+! _3 *= _1
+! _3 *= _2
+! _3 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_3)
+! int64_t _4 = 0
+! int64_t _5 = 0
+! _jump3:
+! int64_t _6 = 1
+! int64_t _7 = 0
+! _7 *= _0.d0
+! _7 += _5
+! _7 *= _0.d1
+! _7 += _4
+! _0.data[_7] = _6
+! _4++
+! if (_4 < _2)
+! goto _jump3
+! _4 = 0
+! _5++
+! if (_5 < _1)
+! goto _jump3
+  show("(ArrayType (IntType) 2)", &_0)
+  }
+--- 4,10 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 3) j (IntExpr 768614336404564651) (IntExpr 1)) */
+  show("(ArrayType (IntType) 2)", &_0)
+  }
+
+=======================
+W
+044.jpl: 373 lines differ
+======= Standard Out: =======
+*** 044.jpl.expected
+--- Your compiler
+***************
+*** 4,93 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- typedef struct {
+- int64_t d0
+- int64_t d1
+- int64_t d2
+- int64_t *data
+- } _a3_int64_t
+  void jpl_main(struct args args) {
+! _a3_int64_t _0
+! int64_t _1 = 100
+! _0.d0 = _1
+! if (_1 > 0)
+  goto _jump1
+! fail_assertion("non-positive loop bound")
+  _jump1:
+! int64_t _2 = 100
+! _0.d1 = _2
+! if (_2 > 0)
+  goto _jump2
+! fail_assertion("non-positive loop bound")
+  _jump2:
+! int64_t _3 = 100
+! _0.d2 = _3
+! if (_3 > 0)
+  goto _jump3
+! fail_assertion("non-positive loop bound")
+  _jump3:
+! int64_t _4 = 1
+! _4 *= _1
+! _4 *= _2
+! _4 *= _3
+! _4 *= sizeof(int64_t)
+! _0.data = jpl_alloc(_4)
+! int64_t _5 = 0
+  int64_t _6 = 0
+  int64_t _7 = 0
+! _jump4:
+! int64_t _8 = _7 + _6
+! int64_t _9 = _8 + _5
+! int64_t _10 = 0
+! _10 *= _0.d0
+! _10 += _7
+! _10 *= _0.d1
+! _10 += _6
+! _10 *= _0.d2
+! _10 += _5
+! _0.data[_10] = _9
+! _5++
+! if (_5 < _3)
+! goto _jump4
+! _5 = 0
+! _6++
+! if (_6 < _2)
+! goto _jump4
+! _6 = 0
+! _7++
+! if (_7 < _1)
+! goto _jump4
+  int64_t _11 = 0
+! int64_t _12 = 0
+  int64_t _13 = 0
+  if (_11 >= 0)
+! goto _jump5
+! fail_assertion("negative array index")
+! _jump5:
+  if (_11 < _0.d0)
+! goto _jump6
+! fail_assertion("index too large")
+! _jump6:
+  if (_12 >= 0)
+! goto _jump7
+! fail_assertion("negative array index")
+! _jump7:
+  if (_12 < _0.d1)
+! goto _jump8
+! fail_assertion("index too large")
+! _jump8:
+  if (_13 >= 0)
+! goto _jump9
+! fail_assertion("negative array index")
+! _jump9:
+  if (_13 < _0.d2)
+! goto _jump10
+! fail_assertion("index too large")
+! _jump10:
+  int64_t _14 = 0
+  _14 *= _0.d0
+  _14 += _11
+--- 4,110 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! /* unhandled expr: (ArrayLoopExpr i (IntExpr 100) j (IntExpr 100) k (IntExpr 100) (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k))) */
+! int64_t _1 = 0
+! int64_t _2 = 0
+! int64_t _3 = 0
+! if (_1 >= 0)
+  goto _jump1
+! fail_assertion("negative array index")
+  _jump1:
+! if (_1 < _0.d0)
+  goto _jump2
+! fail_assertion("index too large")
+  _jump2:
+! if (_2 >= 0)
+  goto _jump3
+! fail_assertion("negative array index")
+  _jump3:
+! if (_2 < _0.d1)
+! goto _jump4
+! fail_assertion("index too large")
+! _jump4:
+! if (_3 >= 0)
+! goto _jump5
+! fail_assertion("negative array index")
+! _jump5:
+! if (_3 < _0.d2)
+! goto _jump6
+! fail_assertion("index too large")
+! _jump6:
+! int64_t _4 = 0
+! _4 *= _0.d0
+! _4 += _1
+! _4 *= _0.d1
+! _4 += _2
+! _4 *= _0.d2
+! _4 += _3
+! int64_t _5 = _0.data[_4]
+! show("(IntType)", &_5)
+  int64_t _6 = 0
+  int64_t _7 = 0
+! int64_t _8 = 1
+! if (_6 >= 0)
+! goto _jump7
+! fail_assertion("negative array index")
+! _jump7:
+! if (_6 < _0.d0)
+! goto _jump8
+! fail_assertion("index too large")
+! _jump8:
+! if (_7 >= 0)
+! goto _jump9
+! fail_assertion("negative array index")
+! _jump9:
+! if (_7 < _0.d1)
+! goto _jump10
+! fail_assertion("index too large")
+! _jump10:
+! if (_8 >= 0)
+! goto _jump11
+! fail_assertion("negative array index")
+! _jump11:
+! if (_8 < _0.d2)
+! goto _jump12
+! fail_assertion("index too large")
+! _jump12:
+! int64_t _9 = 0
+! _9 *= _0.d0
+! _9 += _6
+! _9 *= _0.d1
+! _9 += _7
+! _9 *= _0.d2
+! _9 += _8
+! int64_t _10 = _0.data[_9]
+! show("(IntType)", &_10)
+  int64_t _11 = 0
+! int64_t _12 = 1
+  int64_t _13 = 0
+  if (_11 >= 0)
+! goto _jump13
+! fail_assertion("negative array index")
+! _jump13:
+  if (_11 < _0.d0)
+! goto _jump14
+! fail_assertion("index too large")
+! _jump14:
+  if (_12 >= 0)
+! goto _jump15
+! fail_assertion("negative array index")
+! _jump15:
+  if (_12 < _0.d1)
+! goto _jump16
+! fail_assertion("index too large")
+! _jump16:
+  if (_13 >= 0)
+! goto _jump17
+! fail_assertion("negative array index")
+! _jump17:
+  if (_13 < _0.d2)
+! goto _jump18
+! fail_assertion("index too large")
+! _jump18:
+  int64_t _14 = 0
+  _14 *= _0.d0
+  _14 += _11
+***************
+*** 97,129 ****
+  _14 += _13
+  int64_t _15 = _0.data[_14]
+  show("(IntType)", &_15)
+! int64_t _16 = 0
+  int64_t _17 = 0
+! int64_t _18 = 1
+  if (_16 >= 0)
+! goto _jump11
+! fail_assertion("negative array index")
+! _jump11:
+  if (_16 < _0.d0)
+! goto _jump12
+! fail_assertion("index too large")
+! _jump12:
+  if (_17 >= 0)
+! goto _jump13
+! fail_assertion("negative array index")
+! _jump13:
+  if (_17 < _0.d1)
+! goto _jump14
+! fail_assertion("index too large")
+! _jump14:
+  if (_18 >= 0)
+! goto _jump15
+! fail_assertion("negative array index")
+! _jump15:
+  if (_18 < _0.d2)
+! goto _jump16
+! fail_assertion("index too large")
+! _jump16:
+  int64_t _19 = 0
+  _19 *= _0.d0
+  _19 += _16
+--- 114,146 ----
+  _14 += _13
+  int64_t _15 = _0.data[_14]
+  show("(IntType)", &_15)
+! int64_t _16 = 1
+  int64_t _17 = 0
+! int64_t _18 = 0
+  if (_16 >= 0)
+! goto _jump19
+! fail_assertion("negative array index")
+! _jump19:
+  if (_16 < _0.d0)
+! goto _jump20
+! fail_assertion("index too large")
+! _jump20:
+  if (_17 >= 0)
+! goto _jump21
+! fail_assertion("negative array index")
+! _jump21:
+  if (_17 < _0.d1)
+! goto _jump22
+! fail_assertion("index too large")
+! _jump22:
+  if (_18 >= 0)
+! goto _jump23
+! fail_assertion("negative array index")
+! _jump23:
+  if (_18 < _0.d2)
+! goto _jump24
+! fail_assertion("index too large")
+! _jump24:
+  int64_t _19 = 0
+  _19 *= _0.d0
+  _19 += _16
+***************
+*** 133,281 ****
+  _19 += _18
+  int64_t _20 = _0.data[_19]
+  show("(IntType)", &_20)
+! int64_t _21 = 0
+! int64_t _22 = 1
+  int64_t _23 = 0
+! if (_21 >= 0)
+! goto _jump17
+! fail_assertion("negative array index")
+! _jump17:
+! if (_21 < _0.d0)
+! goto _jump18
+! fail_assertion("index too large")
+! _jump18:
+  if (_22 >= 0)
+! goto _jump19
+! fail_assertion("negative array index")
+! _jump19:
+! if (_22 < _0.d1)
+! goto _jump20
+! fail_assertion("index too large")
+! _jump20:
+  if (_23 >= 0)
+! goto _jump21
+! fail_assertion("negative array index")
+! _jump21:
+! if (_23 < _0.d2)
+! goto _jump22
+! fail_assertion("index too large")
+! _jump22:
+! int64_t _24 = 0
+! _24 *= _0.d0
+! _24 += _21
+! _24 *= _0.d1
+! _24 += _22
+! _24 *= _0.d2
+! _24 += _23
+! int64_t _25 = _0.data[_24]
+! show("(IntType)", &_25)
+! int64_t _26 = 1
+! int64_t _27 = 0
+  int64_t _28 = 0
+! if (_26 >= 0)
+! goto _jump23
+! fail_assertion("negative array index")
+! _jump23:
+! if (_26 < _0.d0)
+! goto _jump24
+! fail_assertion("index too large")
+! _jump24:
+  if (_27 >= 0)
+! goto _jump25
+! fail_assertion("negative array index")
+! _jump25:
+! if (_27 < _0.d1)
+! goto _jump26
+! fail_assertion("index too large")
+! _jump26:
+  if (_28 >= 0)
+- goto _jump27
+- fail_assertion("negative array index")
+- _jump27:
+- if (_28 < _0.d2)
+- goto _jump28
+- fail_assertion("index too large")
+- _jump28:
+- int64_t _29 = 0
+- _29 *= _0.d0
+- _29 += _26
+- _29 *= _0.d1
+- _29 += _27
+- _29 *= _0.d2
+- _29 += _28
+- int64_t _30 = _0.data[_29]
+- show("(IntType)", &_30)
+- int64_t _31 = 1
+- int64_t _32 = -_31
+- int64_t _33 = 0
+- int64_t _34 = 0
+- if (_32 >= 0)
+- goto _jump29
+- fail_assertion("negative array index")
+- _jump29:
+- if (_32 < _0.d0)
+- goto _jump30
+- fail_assertion("index too large")
+- _jump30:
+- if (_33 >= 0)
+- goto _jump31
+- fail_assertion("negative array index")
+- _jump31:
+- if (_33 < _0.d1)
+- goto _jump32
+- fail_assertion("index too large")
+- _jump32:
+- if (_34 >= 0)
+  goto _jump33
+  fail_assertion("negative array index")
+  _jump33:
+! if (_34 < _0.d2)
+  goto _jump34
+  fail_assertion("index too large")
+  _jump34:
+! int64_t _35 = 0
+! _35 *= _0.d0
+! _35 += _32
+! _35 *= _0.d1
+! _35 += _33
+! _35 *= _0.d2
+! _35 += _34
+! int64_t _36 = _0.data[_35]
+! show("(IntType)", &_36)
+! int64_t _37 = 1000
+! int64_t _38 = 0
+! int64_t _39 = 0
+! if (_37 >= 0)
+  goto _jump35
+  fail_assertion("negative array index")
+  _jump35:
+! if (_37 < _0.d0)
+  goto _jump36
+  fail_assertion("index too large")
+  _jump36:
+! if (_38 >= 0)
+! goto _jump37
+! fail_assertion("negative array index")
+! _jump37:
+! if (_38 < _0.d1)
+! goto _jump38
+! fail_assertion("index too large")
+! _jump38:
+! if (_39 >= 0)
+! goto _jump39
+! fail_assertion("negative array index")
+! _jump39:
+! if (_39 < _0.d2)
+! goto _jump40
+! fail_assertion("index too large")
+! _jump40:
+! int64_t _40 = 0
+! _40 *= _0.d0
+! _40 += _37
+! _40 *= _0.d1
+! _40 += _38
+! _40 *= _0.d2
+! _40 += _39
+! int64_t _41 = _0.data[_40]
+! show("(IntType)", &_41)
+  }
+--- 150,226 ----
+  _19 += _18
+  int64_t _20 = _0.data[_19]
+  show("(IntType)", &_20)
+! int64_t _21 = 1
+! int64_t _22 = -_21
+  int64_t _23 = 0
+! int64_t _24 = 0
+  if (_22 >= 0)
+! goto _jump25
+! fail_assertion("negative array index")
+! _jump25:
+! if (_22 < _0.d0)
+! goto _jump26
+! fail_assertion("index too large")
+! _jump26:
+  if (_23 >= 0)
+! goto _jump27
+! fail_assertion("negative array index")
+! _jump27:
+! if (_23 < _0.d1)
+! goto _jump28
+! fail_assertion("index too large")
+! _jump28:
+! if (_24 >= 0)
+! goto _jump29
+! fail_assertion("negative array index")
+! _jump29:
+! if (_24 < _0.d2)
+! goto _jump30
+! fail_assertion("index too large")
+! _jump30:
+! int64_t _25 = 0
+! _25 *= _0.d0
+! _25 += _22
+! _25 *= _0.d1
+! _25 += _23
+! _25 *= _0.d2
+! _25 += _24
+! int64_t _26 = _0.data[_25]
+! show("(IntType)", &_26)
+! int64_t _27 = 1000
+  int64_t _28 = 0
+! int64_t _29 = 0
+  if (_27 >= 0)
+! goto _jump31
+! fail_assertion("negative array index")
+! _jump31:
+! if (_27 < _0.d0)
+! goto _jump32
+! fail_assertion("index too large")
+! _jump32:
+  if (_28 >= 0)
+  goto _jump33
+  fail_assertion("negative array index")
+  _jump33:
+! if (_28 < _0.d1)
+  goto _jump34
+  fail_assertion("index too large")
+  _jump34:
+! if (_29 >= 0)
+  goto _jump35
+  fail_assertion("negative array index")
+  _jump35:
+! if (_29 < _0.d2)
+  goto _jump36
+  fail_assertion("index too large")
+  _jump36:
+! int64_t _30 = 0
+! _30 *= _0.d0
+! _30 += _27
+! _30 *= _0.d1
+! _30 += _28
+! _30 *= _0.d2
+! _30 += _29
+! int64_t _31 = _0.data[_30]
+! show("(IntType)", &_31)
+  }
+
+=======================
+W
+045.jpl: 5 lines differ
+======= Standard Out: =======
+*** 045.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f() {
+- int64_t _0 = 4
+- return _0
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = f()
+  show("(IntType)", &_0)
+  }
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = f()
+  show("(IntType)", &_0)
+  }
+
+=======================
+W
+046.jpl: 5 lines differ
+======= Standard Out: =======
+*** 046.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- double f() {
+- double _0 = 4.0
+- return _0
+- }
+  void jpl_main(struct args args) {
+  double _0 = f()
+  show("(FloatType)", &_0)
+  }
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  double _0 = f()
+  show("(FloatType)", &_0)
+  }
+
+=======================
+W
+047.jpl: 5 lines differ
+======= Standard Out: =======
+*** 047.jpl.expected
+--- Your compiler
+***************
+*** 6,16 ****
+  typedef struct { } void_t
+  typedef struct {
+  } empty
+- empty f() {
+- empty _0 = { }
+- return _0
+- }
+  void jpl_main(struct args args) {
+  empty _0 = f()
+  show("(TupleType )", &_0)
+  }
+--- 6,13 ----
+  typedef struct { } void_t
+  typedef struct {
+  } empty
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  empty _0 = f()
+  show("(TupleType )", &_0)
+  }
+
+=======================
+W
+048.jpl: 6 lines differ
+======= Standard Out: =======
+*** 048.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- void_t f() {
+- int64_t _0 = 1
+- void_t _1 = {}
+- return _1
+- }
+  void jpl_main(struct args args) {
+  void_t _0 = f()
+  show("(VoidType)", &_0)
+  }
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  void_t _0 = f()
+  show("(VoidType)", &_0)
+  }
+
+=======================
+W
+049.jpl: 13 lines differ
+======= Standard Out: =======
+*** 049.jpl.expected
+--- Your compiler
+***************
+*** 8,26 ****
+  int64_t d0
+  int64_t *data
+  } _a1_int64_t
+- _a1_int64_t f() {
+- int64_t _0 = 1
+- int64_t _1 = 2
+- int64_t _2 = 3
+- _a1_int64_t _3
+- _3.d0 = 3
+- _3.data = jpl_alloc(sizeof(int64_t) * 3)
+- _3.data[0] = _0
+- _3.data[1] = _1
+- _3.data[2] = _2
+- return _3
+- }
+  void jpl_main(struct args args) {
+  _a1_int64_t _0 = f()
+  show("(ArrayType (IntType) 1)", &_0)
+  }
+--- 8,15 ----
+  int64_t d0
+  int64_t *data
+  } _a1_int64_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  _a1_int64_t _0 = f()
+  show("(ArrayType (IntType) 1)", &_0)
+  }
+
+=======================
+W
+050.jpl: 13 lines differ
+======= Standard Out: =======
+*** 050.jpl.expected
+--- Your compiler
+***************
+*** 8,27 ****
+  int64_t d0
+  int64_t *data
+  } _a1_int64_t
+- _a1_int64_t f() {
+- int64_t _0 = 1
+- int64_t _1 = 2
+- int64_t _2 = 3
+- _a1_int64_t _3
+- _3.d0 = 3
+- _3.data = jpl_alloc(sizeof(int64_t) * 3)
+- _3.data[0] = _0
+- _3.data[1] = _1
+- _3.data[2] = _2
+- return _3
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 8
+  _a1_int64_t _1 = f()
+  show("(ArrayType (IntType) 1)", &_1)
+  }
+--- 8,16 ----
+  int64_t d0
+  int64_t *data
+  } _a1_int64_t
+  void jpl_main(struct args args) {
+  int64_t _0 = 8
++ /* function f (...) { ... } */
+  _a1_int64_t _1 = f()
+  show("(ArrayType (IntType) 1)", &_1)
+  }
+
+=======================
+W
+051.jpl: 6 lines differ
+======= Standard Out: =======
+*** 051.jpl.expected
+--- Your compiler
+***************
+*** 7,18 ****
+  typedef struct {
+  int64_t a
+  } box
+- box f() {
+- int64_t _0 = 1
+- box _1 = { _0 }
+- return _1
+- }
+  void jpl_main(struct args args) {
+  box _0 = f()
+  show("(TupleType (IntType))", &_0)
+  }
+--- 7,14 ----
+  typedef struct {
+  int64_t a
+  } box
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  box _0 = f()
+  show("(TupleType (IntType))", &_0)
+  }
+
+=======================
+W
+052.jpl: 7 lines differ
+======= Standard Out: =======
+*** 052.jpl.expected
+--- Your compiler
+***************
+*** 8,20 ****
+  int64_t a
+  int64_t b
+  } poin
+- poin f() {
+- int64_t _0 = 1
+- int64_t _1 = 2
+- poin _2 = { _0, _1 }
+- return _2
+- }
+  void jpl_main(struct args args) {
+  poin _0 = f()
+  show("(TupleType (IntType) (IntType))", &_0)
+  }
+--- 8,15 ----
+  int64_t a
+  int64_t b
+  } poin
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  poin _0 = f()
+  show("(TupleType (IntType) (IntType))", &_0)
+  }
+
+=======================
+W
+053.jpl: 8 lines differ
+======= Standard Out: =======
+*** 053.jpl.expected
+--- Your compiler
+***************
+*** 9,22 ****
+  int64_t b
+  int64_t c
+  } iii
+- iii f() {
+- int64_t _0 = 1
+- int64_t _1 = 2
+- int64_t _2 = 3
+- iii _3 = { _0, _1, _2 }
+- return _3
+- }
+  void jpl_main(struct args args) {
+  iii _0 = f()
+  show("(TupleType (IntType) (IntType) (IntType))", &_0)
+  }
+--- 9,16 ----
+  int64_t b
+  int64_t c
+  } iii
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  iii _0 = f()
+  show("(TupleType (IntType) (IntType) (IntType))", &_0)
+  }
+
+=======================
+W
+054.jpl: 5 lines differ
+======= Standard Out: =======
+*** 054.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a) {
+- int64_t _0 = 1
+- return _0
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 2
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 2
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+055.jpl: 4 lines differ
+======= Standard Out: =======
+*** 055.jpl.expected
+--- Your compiler
+***************
+*** 4,13 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a) {
+- return a
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 2
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 2
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+056.jpl: 4 lines differ
+======= Standard Out: =======
+*** 056.jpl.expected
+--- Your compiler
+***************
+*** 4,13 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a) {
+- return a
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 2
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 2
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+057.jpl: 5 lines differ
+======= Standard Out: =======
+*** 057.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a, int64_t b) {
+- int64_t _0 = a + b
+- return _0
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 2
+  int64_t _1 = 3
+  int64_t _2 = f(_0, _1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 2
+  int64_t _1 = 3
+  int64_t _2 = f(_0, _1)
+
+=======================
+W
+058.jpl: 9 lines differ
+======= Standard Out: =======
+*** 058.jpl.expected
+--- Your compiler
+***************
+*** 4,18 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a, int64_t b, int64_t c, int64_t d, int64_t e, int64_t g) {
+- int64_t _0 = a + b
+- int64_t _1 = _0 + c
+- int64_t _2 = _1 + d
+- int64_t _3 = _2 + e
+- int64_t _4 = _3 + g
+- return _4
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 1
+  int64_t _1 = 2
+  int64_t _2 = 3
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 1
+  int64_t _1 = 2
+  int64_t _2 = 3
+
+=======================
+W
+059.jpl: 5 lines differ
+======= Standard Out: =======
+*** 059.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(double a) {
+- int64_t _0 = to_int(a)
+- return _0
+- }
+  void jpl_main(struct args args) {
+  double _0 = 1.0
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  double _0 = 1.0
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+060.jpl: 4 lines differ
+======= Standard Out: =======
+*** 060.jpl.expected
+--- Your compiler
+***************
+*** 4,13 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- double f(double a) {
+- return a
+- }
+  void jpl_main(struct args args) {
+  double _0 = 1.0
+  double _1 = f(_0)
+  show("(FloatType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  double _0 = 1.0
+  double _1 = f(_0)
+  show("(FloatType)", &_1)
+
+=======================
+W
+061.jpl: 5 lines differ
+======= Standard Out: =======
+*** 061.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- double f(double a, double b) {
+- double _0 = a + b
+- return _0
+- }
+  void jpl_main(struct args args) {
+  double _0 = 1.0
+  double _1 = 2.0
+  double _2 = f(_0, _1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  double _0 = 1.0
+  double _1 = 2.0
+  double _2 = f(_0, _1)
+
+=======================
+W
+062.jpl: 11 lines differ
+======= Standard Out: =======
+*** 062.jpl.expected
+--- Your compiler
+***************
+*** 4,20 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- double f(double a, double b, double c, double d, double e, double g, double h, double i) {
+- double _0 = a + b
+- double _1 = _0 + c
+- double _2 = _1 + d
+- double _3 = _2 + e
+- double _4 = _3 + i
+- double _5 = _4 + g
+- double _6 = _5 + h
+- return _6
+- }
+  void jpl_main(struct args args) {
+  double _0 = 1.0
+  double _1 = 2.0
+  double _2 = 3.0
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  double _0 = 1.0
+  double _1 = 2.0
+  double _2 = 3.0
+
+=======================
+W
+063.jpl: 6 lines differ
+======= Standard Out: =======
+*** 063.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- double f(double a, int64_t b) {
+- double _0 = to_float(b)
+- double _1 = a + _0
+- return _1
+- }
+  void jpl_main(struct args args) {
+  double _0 = 1.0
+  int64_t _1 = 2
+  double _2 = f(_0, _1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  double _0 = 1.0
+  int64_t _1 = 2
+  double _2 = f(_0, _1)
+
+=======================
+W
+064.jpl: 6 lines differ
+======= Standard Out: =======
+*** 064.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a, double b) {
+- int64_t _0 = to_int(b)
+- int64_t _1 = a + _0
+- return _1
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 1
+  double _1 = 2.0
+  int64_t _2 = f(_0, _1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 1
+  double _1 = 2.0
+  int64_t _2 = f(_0, _1)
+
+=======================
+W
+065.jpl: 6 lines differ
+======= Standard Out: =======
+*** 065.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a, double b) {
+- int64_t _0 = to_int(b)
+- int64_t _1 = a + _0
+- return _1
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 1
+  double _1 = 2.0
+  int64_t _2 = f(_0, _1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 1
+  double _1 = 2.0
+  int64_t _2 = f(_0, _1)
+
+=======================
+W
+066.jpl: 12 lines differ
+======= Standard Out: =======
+*** 066.jpl.expected
+--- Your compiler
+***************
+*** 4,21 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a, double b, int64_t c, double d, int64_t e, int64_t i, double g, double h) {
+- int64_t _0 = a + c
+- int64_t _1 = _0 + e
+- int64_t _2 = _1 + i
+- double _3 = b + d
+- double _4 = _3 + g
+- double _5 = _4 + h
+- int64_t _6 = to_int(_5)
+- int64_t _7 = _2 + _6
+- return _7
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 1
+  double _1 = 2.0
+  int64_t _2 = 3
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 1
+  double _1 = 2.0
+  int64_t _2 = 3
+
+=======================
+W
+067.jpl: 5 lines differ
+======= Standard Out: =======
+*** 067.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(void_t x) {
+- int64_t _0 = 4
+- return _0
+- }
+  void jpl_main(struct args args) {
+  void_t _0 = {}
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  void_t _0 = {}
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+068.jpl: 5 lines differ
+======= Standard Out: =======
+*** 068.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(void_t m, void_t n, void_t k) {
+- int64_t _0 = 4
+- return _0
+- }
+  void jpl_main(struct args args) {
+  void_t _0 = {}
+  void_t _1 = {}
+  void_t _2 = {}
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  void_t _0 = {}
+  void_t _1 = {}
+  void_t _2 = {}
+
+=======================
+W
+069.jpl: 5 lines differ
+======= Standard Out: =======
+*** 069.jpl.expected
+--- Your compiler
+***************
+*** 4,14 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t a, void_t c, int64_t b) {
+- int64_t _0 = a + b
+- return _0
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 13
+  void_t _1 = {}
+  int64_t _2 = 21
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 13
+  void_t _1 = {}
+  int64_t _2 = 21
+
+=======================
+W
+070.jpl: 11 lines differ
+======= Standard Out: =======
+*** 070.jpl.expected
+--- Your compiler
+***************
+*** 4,16 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+! typedef struct {
+! int64_t d0
+! int64_t d1
+! int64_t *data
+! } _a2_int64_t
+! _a2_int64_t f(_a2_int64_t a) {
+! return a
+  }
+- void jpl_main(struct args args) {
+- }
+--- 4,9 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+! void jpl_main(struct args args) {
+! /* function f (...) { ... } */
+  }
+
+=======================
+W
+071.jpl: 12 lines differ
+======= Standard Out: =======
+*** 071.jpl.expected
+--- Your compiler
+***************
+*** 4,17 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+! typedef struct {
+! int64_t d0
+! int64_t d1
+! int64_t *data
+! } _a2_int64_t
+! int64_t f(_a2_int64_t a) {
+! int64_t _0 = a.d0 + a.d1
+! return _0
+  }
+- void jpl_main(struct args args) {
+- }
+--- 4,9 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+! void jpl_main(struct args args) {
+! /* function f (...) { ... } */
+  }
+
+=======================
+W
+072.jpl: 5 lines differ
+======= Standard Out: =======
+*** 072.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t d) {
+- int64_t _0 = x + d
+- return _0
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 1
+  int64_t _1 = 13
+  int64_t _2 = f(_1)
+  show("(IntType)", &_2)
+--- 4,12 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+  int64_t _0 = 1
++ /* function f (...) { ... } */
+  int64_t _1 = 13
+  int64_t _2 = f(_1)
+  show("(IntType)", &_2)
+
+=======================
+W
+073.jpl: 6 lines differ
+======= Standard Out: =======
+*** 073.jpl.expected
+--- Your compiler
+***************
+*** 4,18 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t d) {
+- int64_t _0 = W * H
+- int64_t _1 = _0 + d
+- return _1
+- }
+  void jpl_main(struct args args) {
+  _a2_rgba _0 = read_image("a.png")
+  int64_t W = _0.d0
+  int64_t H = _0.d1
+  int64_t _1 = 13
+  int64_t _2 = f(_1)
+  show("(IntType)", &_2)
+--- 4,14 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+  _a2_rgba _0 = read_image("a.png")
+  int64_t W = _0.d0
+  int64_t H = _0.d1
++ /* function f (...) { ... } */
+  int64_t _1 = 13
+  int64_t _2 = f(_1)
+  show("(IntType)", &_2)
+
+=======================
+W
+074.jpl: 6 lines differ
+======= Standard Out: =======
+*** 074.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t d) {
+- int64_t _0 = 1
+- int64_t _1 = 3
+- return _1
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 13
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 13
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+075.jpl: 6 lines differ
+======= Standard Out: =======
+*** 075.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- void_t f(int64_t d) {
+- int64_t _0 = 1
+- void_t _1 = {}
+- return _1
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 13
+  void_t _1 = f(_0)
+  show("(VoidType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 13
+  void_t _1 = f(_0)
+  show("(VoidType)", &_1)
+
+=======================
+W
+076.jpl: 6 lines differ
+======= Standard Out: =======
+*** 076.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- int64_t f(int64_t d) {
+- int64_t _0 = d * d
+- int64_t _1 = _0 + d
+- return _1
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 13
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 13
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+077.jpl: 6 lines differ
+======= Standard Out: =======
+*** 077.jpl.expected
+--- Your compiler
+***************
+*** 4,15 ****
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+- void_t f(int64_t d) {
+- int64_t _0 = d * d
+- void_t _1 = {}
+- return _1
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 13
+  void_t _1 = f(_0)
+  show("(VoidType)", &_1)
+--- 4,11 ----
+  #include <stdio.h>
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 13
+  void_t _1 = f(_0)
+  show("(VoidType)", &_1)
+
+=======================
+W
+078.jpl: 9 lines differ
+======= Standard Out: =======
+*** 078.jpl.expected
+--- Your compiler
+***************
+*** 8,22 ****
+  int64_t a
+  int64_t b
+  } pair
+- int64_t f(int64_t d) {
+- int64_t _0 = d * d
+- pair _1 = { _0, _0 }
+- int64_t _2 = _1.a
+- int64_t _3 = _1.b
+- int64_t _4 = _2 + _3
+- return _4
+- }
+  void jpl_main(struct args args) {
+  int64_t _0 = 13
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+--- 8,15 ----
+  int64_t a
+  int64_t b
+  } pair
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  int64_t _0 = 13
+  int64_t _1 = f(_0)
+  show("(IntType)", &_1)
+
+=======================
+W
+079.jpl: 5 lines differ
+======= Standard Out: =======
+*** 079.jpl.expected
+--- Your compiler
+***************
+*** 13,23 ****
+  int64_t d5
+  int64_t *data
+  } _a6_int64_t
+- _a6_int64_t f() {
+- _a6_int64_t _0 = f()
+- return _0
+- }
+  void jpl_main(struct args args) {
+  _a6_int64_t _0 = f()
+  show("(ArrayType (IntType) 6)", &_0)
+  }
+--- 13,20 ----
+  int64_t d5
+  int64_t *data
+  } _a6_int64_t
+  void jpl_main(struct args args) {
++ /* function f (...) { ... } */
+  _a6_int64_t _0 = f()
+  show("(ArrayType (IntType) 6)", &_0)
+  }
+
+=======================
+W
+080.jpl: 2 lines differ
+======= Standard Out: =======
+*** 080.jpl.expected
+--- Your compiler
+***************
+*** 5,10 ****
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! show("(IntType)", &args.d0)
+  show("(ArrayType (IntType) 1)", &args)
+  }
+--- 5,10 ----
+  #include "rt/runtime.h"
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+! show("(IntType)", &argnum)
+  show("(ArrayType (IntType) 1)", &args)
+  }
+
+=======================
+..........
+Passed 30/90 = 33.3% tests
+make[1]: Leaving directory '/root/CS4470HWs/grader'

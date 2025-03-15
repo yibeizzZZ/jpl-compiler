@@ -1,6 +1,8 @@
 {
     "makefile.configureOnOpen": false,
     "files.associations": {
-        "out": "cpp"
+        "out": "cpp",
+        "out2": "cpp",
+        "out3": "cpp"
     }
 }

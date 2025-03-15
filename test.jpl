@@ -1,2 +1,1 @@
-let a[b] = [1, 2, 3]
-show a
+show sum[i : 10] 1

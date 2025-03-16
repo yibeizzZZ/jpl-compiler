@@ -1,21 +1,169 @@
 make -C ./grader DIR=/root/CS4470HWs PART=1 test-hw9
 make[1]: Entering directory '/root/CS4470HWs/grader'
-Homework 9 part 1 ....................W
-021.jpl: 15 lines differ
+Homework 9 part 1 .......................W
+024.jpl: 20 lines differ
 ======= Standard Out: =======
-*** 021.jpl.expected
+*** 024.jpl.expected
 --- Your compiler
 ***************
-*** 5,23 ****
-  #include "rt/runtime.h"
+*** 6,26 ****
   typedef struct { } void_t
   void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 10
+  double _0
+! double _1 = 2.0
+! double _2 = exp(_1)
+! int64_t _3 = to_int(_2)
+! if (_3 > 0)
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+  _0 = 0
+! int64_t _4 = 0
+  _jump2:
+! double _5 = to_float(_4)
+! double _6 = sin(_5)
+! _0 += _6
+! _4++
+! if (_4 < _3)
+  goto _jump2
+  show("(FloatType)", &_0)
+  }
+--- 6,26 ----
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+  double _0
+! double _2 = 2.0
+! double _3 = exp(_2)
+! int64_t _4 = to_int(_3)
 ! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+  _0 = 0
+! int64_t _5 = 0
+  _jump2:
+! double _7 = to_float(i)
+! double _8 = sin(_7)
+! _0 += _8
+! _5++
+! if (_5 < _1)
+  goto _jump2
+  show("(FloatType)", &_0)
+  }
+
+=======================
+W
+025.jpl: 18 lines differ
+======= Standard Out: =======
+*** 025.jpl.expected
+--- Your compiler
+***************
+*** 6,25 ****
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+  double _0
+! int64_t _1 = 1
+! int64_t _2 = -_1
+! if (_2 > 0)
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+  _0 = 0
+! int64_t _3 = 0
+  _jump2:
+! double _4 = to_float(_3)
+! double _5 = sin(_4)
+! _0 += _5
+! _3++
+! if (_3 < _2)
+  goto _jump2
+  show("(FloatType)", &_0)
+  }
+--- 6,25 ----
+  typedef struct { } void_t
+  void jpl_main(struct args args) {
+  double _0
+! int64_t _2 = 1
+! int64_t _3 = -_2
+! if (_1 > 0)
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+  _0 = 0
+! int64_t _4 = 0
+  _jump2:
+! double _6 = to_float(i)
+! double _7 = sin(_6)
+! _0 += _7
+! _4++
+! if (_4 < _1)
+  goto _jump2
+  show("(FloatType)", &_0)
+  }
+
+=======================
+W
+026.jpl: 6 lines differ
+======= Standard Out: =======
+*** 026.jpl.expected
+--- Your compiler
+***************
+*** 14,22 ****
+  _0 = 0
+  int64_t _2 = 0
+  _jump2:
+! double _3 = to_float(_2)
+! double _4 = sin(_3)
+! _0 += _4
+  _2++
+  if (_2 < _1)
+  goto _jump2
+--- 14,22 ----
+  _0 = 0
+  int64_t _2 = 0
+  _jump2:
+! double _4 = to_float(i)
+! double _5 = sin(_4)
+! _0 += _5
+  _2++
+  if (_2 < _1)
+  goto _jump2
+
+=======================
+W
+027.jpl: 24 lines differ
+======= Standard Out: =======
+*** 027.jpl.expected
+--- Your compiler
+***************
+*** 11,33 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! int64_t _2 = 10
+! if (_2 > 0)
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- _0 = 0
+- int64_t _3 = 0
+- int64_t _4 = 0
+- _jump3:
+- int64_t _5 = 1
+- _0 += _5
+- _3++
+- if (_3 < _2)
+- goto _jump3
+- _3 = 0
+- _4++
+- if (_4 < _1)
+- goto _jump3
+  show("(IntType)", &_0)
+  }
+--- 11,23 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! _0 = 0
 ! int64_t _2 = 0
 ! _jump2:
@@ -23,604 +171,375 @@ Homework 9 part 1 ....................W
 ! _0 += _3
 ! _2++
 ! if (_2 < _1)
-! goto _jump2
-  show("(IntType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) (IntExpr 1)) */
+  goto _jump2
   show("(IntType)", &_0)
   }
 
 =======================
 W
-022.jpl: 15 lines differ
-======= Standard Out: =======
-*** 022.jpl.expected
---- Your compiler
-***************
-*** 5,23 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! double _0
-! int64_t _1 = 10
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! _0 = 0
-! int64_t _2 = 0
-! _jump2:
-! double _3 = 1.0
-! _0 += _3
-! _2++
-! if (_2 < _1)
-! goto _jump2
-  show("(FloatType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) (FloatExpr 1)) */
-  show("(FloatType)", &_0)
-  }
-
-=======================
-W
-023.jpl: 14 lines differ
-======= Standard Out: =======
-*** 023.jpl.expected
---- Your compiler
-***************
-*** 5,22 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 10
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! _0 = 0
-! int64_t _2 = 0
-! _jump2:
-! _0 += _2
-! _2++
-! if (_2 < _1)
-! goto _jump2
-  show("(IntType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) (VarExpr i)) */
-  show("(IntType)", &_0)
-  }
-
-=======================
-W
-024.jpl: 18 lines differ
-======= Standard Out: =======
-*** 024.jpl.expected
---- Your compiler
-***************
-*** 5,26 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! double _0
-! double _1 = 2.0
-! double _2 = exp(_1)
-! int64_t _3 = to_int(_2)
-! if (_3 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! _0 = 0
-! int64_t _4 = 0
-! _jump2:
-! double _5 = to_float(_4)
-! double _6 = sin(_5)
-! _0 += _6
-! _4++
-! if (_4 < _3)
-! goto _jump2
-  show("(FloatType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (CallExpr to_int (CallExpr exp (FloatExpr 2))) (CallExpr sin (CallExpr to_float (VarExpr i)))) */
-  show("(FloatType)", &_0)
-  }
-
-=======================
-W
-025.jpl: 17 lines differ
-======= Standard Out: =======
-*** 025.jpl.expected
---- Your compiler
-***************
-*** 5,25 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! double _0
-! int64_t _1 = 1
-! int64_t _2 = -_1
-! if (_2 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! _0 = 0
-! int64_t _3 = 0
-! _jump2:
-! double _4 = to_float(_3)
-! double _5 = sin(_4)
-! _0 += _5
-! _3++
-! if (_3 < _2)
-! goto _jump2
-  show("(FloatType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (UnopExpr - (IntExpr 1)) (CallExpr sin (CallExpr to_float (VarExpr i)))) */
-  show("(FloatType)", &_0)
-  }
-
-=======================
-W
-026.jpl: 16 lines differ
-======= Standard Out: =======
-*** 026.jpl.expected
---- Your compiler
-***************
-*** 5,24 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! double _0
-! int64_t _1 = 0
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! _0 = 0
-! int64_t _2 = 0
-! _jump2:
-! double _3 = to_float(_2)
-! double _4 = sin(_3)
-! _0 += _4
-! _2++
-! if (_2 < _1)
-! goto _jump2
-  show("(FloatType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 0) (CallExpr sin (CallExpr to_float (VarExpr i)))) */
-  show("(FloatType)", &_0)
-  }
-
-=======================
-W
-027.jpl: 25 lines differ
-======= Standard Out: =======
-*** 027.jpl.expected
---- Your compiler
-***************
-*** 5,33 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 10
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! int64_t _2 = 10
-! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! _0 = 0
-! int64_t _3 = 0
-! int64_t _4 = 0
-! _jump3:
-! int64_t _5 = 1
-! _0 += _5
-! _3++
-! if (_3 < _2)
-! goto _jump3
-! _3 = 0
-! _4++
-! if (_4 < _1)
-! goto _jump3
-  show("(IntType)", &_0)
-  }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 10) (IntExpr 1)) */
-  show("(IntType)", &_0)
-  }
-
-=======================
-W
-028.jpl: 27 lines differ
+028.jpl: 24 lines differ
 ======= Standard Out: =======
 *** 028.jpl.expected
 --- Your compiler
 ***************
-*** 5,35 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 10
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+*** 11,35 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! int64_t _2 = 10
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! _0 = 0
-! int64_t _3 = 0
-! int64_t _4 = 0
-! _jump3:
-! int64_t _5 = 10
-! int64_t _6 = _5 * _4
-! int64_t _7 = _6 + _3
-! _0 += _7
-! _3++
-! if (_3 < _2)
-! goto _jump3
-! _3 = 0
-! _4++
-! if (_4 < _1)
-! goto _jump3
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- _0 = 0
+- int64_t _3 = 0
+- int64_t _4 = 0
+- _jump3:
+- int64_t _5 = 10
+- int64_t _6 = _5 * _4
+- int64_t _7 = _6 + _3
+- _0 += _7
+- _3++
+- if (_3 < _2)
+- goto _jump3
+- _3 = 0
+- _4++
+- if (_4 < _1)
+- goto _jump3
   show("(IntType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 10) (BinopExpr (BinopExpr (IntExpr 10) * (VarExpr i)) + (VarExpr j))) */
+--- 11,21 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(IntType)", &_0)
   }
 
 =======================
 W
-029.jpl: 29 lines differ
+029.jpl: 32 lines differ
 ======= Standard Out: =======
 *** 029.jpl.expected
 --- Your compiler
 ***************
-*** 5,37 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! double _0
-! int64_t _1 = 10
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+*** 11,37 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! int64_t _2 = 10
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! _0 = 0
-! int64_t _3 = 0
-! int64_t _4 = 0
-! _jump3:
-! double _5 = to_float(_4)
-! double _6 = 1.0
-! double _7 = _5 + _6
-! double _8 = to_float(_3)
-! double _9 = pow(_7, _8)
-! _0 += _9
-! _3++
-! if (_3 < _2)
-! goto _jump3
-! _3 = 0
-! _4++
-! if (_4 < _1)
-! goto _jump3
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- _0 = 0
+- int64_t _3 = 0
+- int64_t _4 = 0
+- _jump3:
+- double _5 = to_float(_4)
+- double _6 = 1.0
+- double _7 = _5 + _6
+- double _8 = to_float(_3)
+- double _9 = pow(_7, _8)
+- _0 += _9
+- _3++
+- if (_3 < _2)
+- goto _jump3
+- _3 = 0
+- _4++
+- if (_4 < _1)
+- goto _jump3
   show("(FloatType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 10) (CallExpr pow (BinopExpr (CallExpr to_float (VarExpr i)) + (FloatExpr 1)) (CallExpr to_float (VarExpr j)))) */
+--- 11,27 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! double _4 = to_float(i)
+! double _5 = 1.0
+! double _6 = _4 + _5
+! double _7 = to_float(j)
+! double _8 = pow(_6, _7)
+! _0 += _8
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(FloatType)", &_0)
   }
 
 =======================
 W
-030.jpl: 25 lines differ
+030.jpl: 22 lines differ
 ======= Standard Out: =======
 *** 030.jpl.expected
 --- Your compiler
 ***************
-*** 5,33 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 10
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
-! int64_t _2 = 0
+*** 11,33 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+  int64_t _2 = 0
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! _0 = 0
-! int64_t _3 = 0
-! int64_t _4 = 0
-! _jump3:
-! int64_t _5 = 1
-! _0 += _5
-! _3++
-! if (_3 < _2)
-! goto _jump3
-! _3 = 0
-! _4++
-! if (_4 < _1)
-! goto _jump3
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- _0 = 0
+- int64_t _3 = 0
+- int64_t _4 = 0
+- _jump3:
+- int64_t _5 = 1
+- _0 += _5
+- _3++
+- if (_3 < _2)
+- goto _jump3
+- _3 = 0
+- _4++
+- if (_4 < _1)
+- goto _jump3
   show("(IntType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 10) j (IntExpr 0) (IntExpr 1)) */
+--- 11,23 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
++ _0 = 0
+  int64_t _2 = 0
+! _jump2:
+! int64_t _3 = 1
+! _0 += _3
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(IntType)", &_0)
   }
 
 =======================
 W
-031.jpl: 25 lines differ
+031.jpl: 24 lines differ
 ======= Standard Out: =======
 *** 031.jpl.expected
 --- Your compiler
 ***************
-*** 5,33 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 0
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+*** 11,33 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! int64_t _2 = 10
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! _0 = 0
-! int64_t _3 = 0
-! int64_t _4 = 0
-! _jump3:
-! int64_t _5 = 1
-! _0 += _5
-! _3++
-! if (_3 < _2)
-! goto _jump3
-! _3 = 0
-! _4++
-! if (_4 < _1)
-! goto _jump3
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- _0 = 0
+- int64_t _3 = 0
+- int64_t _4 = 0
+- _jump3:
+- int64_t _5 = 1
+- _0 += _5
+- _3++
+- if (_3 < _2)
+- goto _jump3
+- _3 = 0
+- _4++
+- if (_4 < _1)
+- goto _jump3
   show("(IntType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 0) j (IntExpr 10) (IntExpr 1)) */
+--- 11,23 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! int64_t _3 = 1
+! _0 += _3
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(IntType)", &_0)
   }
 
 =======================
 W
-032.jpl: 25 lines differ
+032.jpl: 22 lines differ
 ======= Standard Out: =======
 *** 032.jpl.expected
 --- Your compiler
 ***************
-*** 5,33 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 65536
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+*** 11,33 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! int64_t _2 = 65536
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! _0 = 0
-! int64_t _3 = 0
-! int64_t _4 = 0
-! _jump3:
-! int64_t _5 = _4 * _3
-! _0 += _5
-! _3++
-! if (_3 < _2)
-! goto _jump3
-! _3 = 0
-! _4++
-! if (_4 < _1)
-! goto _jump3
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- _0 = 0
+- int64_t _3 = 0
+- int64_t _4 = 0
+- _jump3:
+- int64_t _5 = _4 * _3
+- _0 += _5
+- _3++
+- if (_3 < _2)
+- goto _jump3
+- _3 = 0
+- _4++
+- if (_4 < _1)
+- goto _jump3
   show("(IntType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 65536) j (IntExpr 65536) (BinopExpr (VarExpr i) * (VarExpr j))) */
+--- 11,21 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(IntType)", &_0)
   }
 
 =======================
 W
-033.jpl: 47 lines differ
+033.jpl: 44 lines differ
 ======= Standard Out: =======
 *** 033.jpl.expected
 --- Your compiler
 ***************
-*** 5,55 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 65536
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+*** 11,55 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! int64_t _2 = 65536
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! int64_t _3 = 65536
-! if (_3 > 0)
-! goto _jump3
-! fail_assertion("non-positive loop bound")
-! _jump3:
-! int64_t _4 = 65536
-! if (_4 > 0)
-! goto _jump4
-! fail_assertion("non-positive loop bound")
-! _jump4:
-! _0 = 0
-! int64_t _5 = 0
-! int64_t _6 = 0
-! int64_t _7 = 0
-! int64_t _8 = 0
-! _jump5:
-! int64_t _9 = _8 + _7
-! int64_t _10 = _9 + _6
-! int64_t _11 = _10 + _5
-! _0 += _11
-! _5++
-! if (_5 < _4)
-! goto _jump5
-! _5 = 0
-! _6++
-! if (_6 < _3)
-! goto _jump5
-! _6 = 0
-! _7++
-! if (_7 < _2)
-! goto _jump5
-! _7 = 0
-! _8++
-! if (_8 < _1)
-! goto _jump5
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- int64_t _3 = 65536
+- if (_3 > 0)
+- goto _jump3
+- fail_assertion("non-positive loop bound")
+- _jump3:
+- int64_t _4 = 65536
+- if (_4 > 0)
+- goto _jump4
+- fail_assertion("non-positive loop bound")
+- _jump4:
+- _0 = 0
+- int64_t _5 = 0
+- int64_t _6 = 0
+- int64_t _7 = 0
+- int64_t _8 = 0
+- _jump5:
+- int64_t _9 = _8 + _7
+- int64_t _10 = _9 + _6
+- int64_t _11 = _10 + _5
+- _0 += _11
+- _5++
+- if (_5 < _4)
+- goto _jump5
+- _5 = 0
+- _6++
+- if (_6 < _3)
+- goto _jump5
+- _6 = 0
+- _7++
+- if (_7 < _2)
+- goto _jump5
+- _7 = 0
+- _8++
+- if (_8 < _1)
+- goto _jump5
   show("(IntType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 65536) j (IntExpr 65536) k (IntExpr 65536) l (IntExpr 65536) (BinopExpr (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k)) + (VarExpr l))) */
+--- 11,21 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(IntType)", &_0)
   }
 
 =======================
 W
-034.jpl: 47 lines differ
+034.jpl: 44 lines differ
 ======= Standard Out: =======
 *** 034.jpl.expected
 --- Your compiler
 ***************
-*** 5,55 ****
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! int64_t _0
-! int64_t _1 = 65537
-! if (_1 > 0)
-! goto _jump1
-! fail_assertion("non-positive loop bound")
-! _jump1:
+*** 11,55 ****
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
 ! int64_t _2 = 65537
 ! if (_2 > 0)
-! goto _jump2
-! fail_assertion("non-positive loop bound")
-! _jump2:
-! int64_t _3 = 65537
-! if (_3 > 0)
-! goto _jump3
-! fail_assertion("non-positive loop bound")
-! _jump3:
-! int64_t _4 = 65537
-! if (_4 > 0)
-! goto _jump4
-! fail_assertion("non-positive loop bound")
-! _jump4:
-! _0 = 0
-! int64_t _5 = 0
-! int64_t _6 = 0
-! int64_t _7 = 0
-! int64_t _8 = 0
-! _jump5:
-! int64_t _9 = _8 + _7
-! int64_t _10 = _9 + _6
-! int64_t _11 = _10 + _5
-! _0 += _11
-! _5++
-! if (_5 < _4)
-! goto _jump5
-! _5 = 0
-! _6++
-! if (_6 < _3)
-! goto _jump5
-! _6 = 0
-! _7++
-! if (_7 < _2)
-! goto _jump5
-! _7 = 0
-! _8++
-! if (_8 < _1)
-! goto _jump5
+  goto _jump2
+- fail_assertion("non-positive loop bound")
+- _jump2:
+- int64_t _3 = 65537
+- if (_3 > 0)
+- goto _jump3
+- fail_assertion("non-positive loop bound")
+- _jump3:
+- int64_t _4 = 65537
+- if (_4 > 0)
+- goto _jump4
+- fail_assertion("non-positive loop bound")
+- _jump4:
+- _0 = 0
+- int64_t _5 = 0
+- int64_t _6 = 0
+- int64_t _7 = 0
+- int64_t _8 = 0
+- _jump5:
+- int64_t _9 = _8 + _7
+- int64_t _10 = _9 + _6
+- int64_t _11 = _10 + _5
+- _0 += _11
+- _5++
+- if (_5 < _4)
+- goto _jump5
+- _5 = 0
+- _6++
+- if (_6 < _3)
+- goto _jump5
+- _6 = 0
+- _7++
+- if (_7 < _2)
+- goto _jump5
+- _7 = 0
+- _8++
+- if (_8 < _1)
+- goto _jump5
   show("(IntType)", &_0)
   }
---- 5,10 ----
-  #include "rt/runtime.h"
-  typedef struct { } void_t
-  void jpl_main(struct args args) {
-! /* unhandled expr: (SumLoopExpr i (IntExpr 65537) j (IntExpr 65537) k (IntExpr 65537) l (IntExpr 65537) (BinopExpr (BinopExpr (BinopExpr (VarExpr i) + (VarExpr j)) + (VarExpr k)) + (VarExpr l))) */
+--- 11,21 ----
+  goto _jump1
+  fail_assertion("non-positive loop bound")
+  _jump1:
+! _0 = 0
+! int64_t _2 = 0
+! _jump2:
+! _2++
+! if (_2 < _1)
+  goto _jump2
   show("(IntType)", &_0)
   }
 
@@ -2904,5 +2823,5 @@ W
 
 =======================
 ..........
-Passed 30/90 = 33.3% tests
+Passed 33/90 = 36.7% tests
 make[1]: Leaving directory '/root/CS4470HWs/grader'

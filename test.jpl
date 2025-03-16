@@ -1,1 +1,2 @@
-show sum[i : 10] 1
+show sum[i : to_int(exp(2.2))] sin(to_float(i))
+

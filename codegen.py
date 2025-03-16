@@ -74,6 +74,84 @@ class CodeGenerator:
             return temp
         if isinstance(expr, LetCmd):
             return self.gen_expr(expr.value, top_level)
+        elif isinstance(expr, SumLoopExpr):
+            result_temp = self.new_temp()
+
+            # Get the resolved type for the result
+            result_type = self.c_type(expr.resolved_type)
+            self.generated_code.append(f"{result_type} {result_temp};")
+            
+            # Extract the bound from the first tuple in the bounds list
+            if expr.bounds:
+                bound_expr = expr.bounds[0][1]  # The second element in the tuple (Expr)
+                bound_temp = self.new_temp()
+
+                # Recursively handle the bound expression
+                self.generated_code.append(f"// Computing bound for i")
+                                
+                # If the bound is an integer expression, ensure we handle it correctly
+                if isinstance(bound_expr, IntExpr):
+                    # Directly use the value for the bound
+                    self.generated_code.append(f"int64_t {bound_temp} = {bound_expr.value};")
+                elif isinstance(bound_expr, FloatExpr):
+                    self.generated_code.append(f"double {bound_temp} = {bound_expr.value};")
+                else:
+                    # Otherwise, handle other expressions normally
+                    bound_code = self.gen_expr(bound_expr)
+                    #self.generated_code.append(f"double {bound_temp} = {bound_code};")
+                
+                # Check that the bound is positive
+                self.generated_code.append(f"if ({bound_temp} > 0)")
+                self.generated_code.append(f"    goto _jump{self.jump_counter};")
+                self.generated_code.append(f'fail_assertion("non-positive loop bound");')
+                self.generated_code.append(f"_jump{self.jump_counter}:;")
+                self.jump_counter += 1
+            else:
+                # If no bound is provided, raise an error (no default bound like 10)
+                raise Exception("No bound provided for loop")
+
+            # Initialize the result to 0
+            self.generated_code.append(f"{result_temp} = 0;")
+            
+            # Create the loop index variable
+            index_temp = self.new_temp()
+            self.generated_code.append(f"int64_t {index_temp} = 0; // i")
+            
+            # Create a label for the loop body
+            loop_label = f"_jump{self.jump_counter}"
+            self.jump_counter += 1
+            self.generated_code.append(f"{loop_label}:; // Begin body of loop")
+            
+            # Process the body of the loop
+            body_temp = self.new_temp()
+            if isinstance(expr.body, IntExpr):
+                # If the body is an integer, treat it as int64_t
+                self.generated_code.append(f"int64_t {body_temp} = {expr.body.value};")
+                self.generated_code.append(f"{result_temp} += {body_temp};")
+            elif isinstance(expr.body, FloatExpr):
+                # If the body is a float, treat it as double
+                self.generated_code.append(f"double {body_temp} = {expr.body.value};")
+                self.generated_code.append(f"{result_temp} += {body_temp};")
+            elif isinstance(expr.body, VarExpr):
+                self.generated_code.append(f"{result_temp} += {index_temp};")
+            elif isinstance(expr.body, CallExpr):
+                # If the body is a CallExpr, process it using the gen_expr method
+                body_temp = self.gen_expr(expr.body, top_level=False)
+                self.generated_code.append(f"{result_temp} += {body_temp};")
+            
+            # Increment the loop index
+            self.generated_code.append(f"{index_temp}++;")
+            
+            # Check if we should continue looping
+            self.generated_code.append(f"if ({index_temp} < {bound_temp})")
+            self.generated_code.append(f"    goto {loop_label};")
+            self.generated_code.append(f"// End body of loop")
+            
+            return result_temp
+
+
+
+
         elif isinstance(expr, IntExpr):
             temp = self.new_temp()
             self.generated_code.append(f"int64_t {temp} = {expr.value};")

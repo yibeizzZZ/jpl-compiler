@@ -1,6 +1,36 @@
-make -C ./grader DIR=/root/CS4470HWs PART=1 test-hw8
-make[1]: Entering directory '/root/CS4470HWs/grader'
-Homework 8 part 1 ......................................................
-....................................
-Passed 90/90 = 100.0% tests
-make[1]: Leaving directory '/root/CS4470HWs/grader'
+python3 compiler.py -i test.jpl
+Generating temporary variable: _0
+Generating temporary variable: _1
+Generating temporary variable: _2
+Generating temporary variable: _3
+Generating temporary variable: _4
+Generating temporary variable: _5
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdio.h>
+#include "rt/runtime.h"
+
+typedef struct { } void_t;
+
+
+void jpl_main(struct args args) {
+    double _0;
+    // Computing bound for i
+    if (_1 > 0)
+        goto _jump1;
+    fail_assertion("non-positive loop bound");
+    _jump1:;
+    _0 = 0;
+    int64_t _2 = 0; // i
+    _jump2:; // Begin body of loop
+    double _4 = to_float(i);
+    double _5 = sin(_4);
+    _0 += _5;
+    _2++;
+    if (_2 < _1)
+        goto _jump2;
+    // End body of loop
+    show("(FloatType)", &_0);
+}
+Compilation succeeded

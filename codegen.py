@@ -71,7 +71,10 @@ class CodeGenerator:
             self.generated_code.append(f"{self.c_type(expr.resolved_type)} {temp} = {base_temp}.{expr.right};")
             return temp
         if isinstance(expr, LetCmd):
-            return self.gen_expr(expr.value, top_level)
+            temp = self.new_temp()
+            value_temp = self.gen_expr(expr.value, top_level)
+            self.generated_code.append(f"{self.c_type(expr.value.resolved_type)} {temp} = {value_temp};")
+            return temp
         elif isinstance(expr, SumLoopExpr):
                 result_temp = self.new_temp()
                 self.generated_code.append(f"{self.c_type(expr.resolved_type)} {result_temp};")
@@ -468,9 +471,10 @@ class CodeGenerator:
             self.generated_code.append(f"_jump{self.jump_counter - 1}:;")
         elif isinstance(cmd, ShowCmd):
             temp = self.gen_expr(cmd.expr, top_level=True)
+            if isinstance(cmd.expr, VarExpr) and cmd.expr.name == "argnum":
+                temp = "args.d0"
             stype = cmd.expr.resolved_type
             if isinstance(stype, ArrayType) and isinstance(stype.element_type, StructType):
-                # 对于数组，其元素类型为结构体，无论是否在 struct_field_map 中，都转换为 tuple 表示
                 type_str = f"(ArrayType {self.struct_to_tuple_sexp(stype.element_type)} {stype.dimension})"
             elif isinstance(stype, StructType):
                 type_str = self.struct_to_tuple_sexp(stype)
@@ -525,21 +529,30 @@ class CodeGenerator:
         old_generated = self.generated_code
         old_counter = self.temp_counter
         old_jump = self.jump_counter
+        old_env = self.env.copy()
         self.generated_code = []
         self.temp_counter = 0
         self.jump_counter = 1
-
-        ret_type_str = self.c_type(cmd.return_type)
+        self.env = {}
+        params = []
         if cmd.bindings:
-            params = []
             for binding in cmd.bindings:
                 param_type = self.c_type(binding.type_node)
-                param_name = binding.lvalue.name
+                if isinstance(binding.lvalue, VarLValue):
+                    param_name = binding.lvalue.name
+                    self.env[param_name] = param_name
+                elif isinstance(binding.lvalue, ArrayLValue):
+                    param_name = binding.lvalue.array
+                    self.env[param_name] = param_name
+                    for i, idx in enumerate(binding.lvalue.indices):
+                        self.env[idx] = f"{param_name}.d{i}"
+                else:
+                    param_name = "unknown"
                 params.append(f"{param_type} {param_name}")
             params_str = ", ".join(params)
         else:
             params_str = ""
-
+        ret_type_str = self.c_type(cmd.return_type)
         has_return = False
         for stmt in cmd.body:
             if isinstance(stmt, ReturnStmt):
@@ -548,20 +561,18 @@ class CodeGenerator:
                 has_return = True
             elif isinstance(stmt, LetStmt):
                 expr_temp = self.gen_expr(stmt.expr, top_level=False)
-
+                self.env[self.generate_lvalue(stmt.lvalue)] = expr_temp
             else:
                 self.gen_expr(stmt, top_level=False)
-
         if ret_type_str == "void_t" and not has_return:
             temp_void = self.new_temp()
             self.generated_code.append(f"void_t {temp_void} = {{}};")
             self.generated_code.append(f"return {temp_void};")
-
         body_lines = self.generated_code[:]
         self.generated_code = old_generated
         self.temp_counter = old_counter
         self.jump_counter = old_jump
-
+        self.env = old_env
         lines = []
         lines.append(f"{ret_type_str} {cmd.name}({params_str}) {{")
         for line in body_lines:

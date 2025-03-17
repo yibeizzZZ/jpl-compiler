@@ -1,4 +1,4 @@
-python3 compiler.py -i grader/hw9/ok/048.jpl
+python3 compiler.py -i grader/hw9/ok/080.jpl
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -8,13 +8,9 @@ python3 compiler.py -i grader/hw9/ok/048.jpl
 typedef struct { } void_t;
 
 
-void_t f() {
-    int64_t _0 = 1;
-    void_t _1 = {};
-    return _1;
-}
+
 void jpl_main(struct args args) {
-    void_t _0 = f();
-    show("(VoidType)", &_0);
+    show("(IntType)", &argnum);
+    show("(ArrayType (IntType) 1)", &args);
 }
 Compilation succeeded

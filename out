@@ -1,4 +1,4 @@
-python3 compiler.py -i grader/hw9/ok/039.jpl
+python3 compiler.py -i grader/hw9/ok/048.jpl
 #include <math.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -7,84 +7,14 @@ python3 compiler.py -i grader/hw9/ok/039.jpl
 
 typedef struct { } void_t;
 
-typedef struct {
-    int64_t d0;
-    int64_t d1;
-    int64_t d2;
-    int64_t d3;
-    int64_t *data;
-} _a4_int64_t;
 
+void_t f() {
+    int64_t _0 = 1;
+    void_t _1 = {};
+    return _1;
+}
 void jpl_main(struct args args) {
-    _a4_int64_t _0;
-    // Computing bound for i
-    int64_t _1 = 10;
-    _0.d0 = _1;
-    if (_1 > 0)
-        goto _jump1;
-    fail_assertion("non-positive loop bound");
-    _jump1:;
-    // Computing bound for j
-    int64_t _2 = 10;
-    _0.d1 = _2;
-    if (_2 > 0)
-        goto _jump2;
-    fail_assertion("non-positive loop bound");
-    _jump2:;
-    // Computing bound for k
-    int64_t _3 = 10;
-    _0.d2 = _3;
-    if (_3 > 0)
-        goto _jump3;
-    fail_assertion("non-positive loop bound");
-    _jump3:;
-    // Computing bound for l
-    int64_t _4 = 10;
-    _0.d3 = _4;
-    if (_4 > 0)
-        goto _jump4;
-    fail_assertion("non-positive loop bound");
-    _jump4:;
-    // Computing total size of heap memory to allocate
-    int64_t _5 = 1;
-    _5 *= _1;
-    _5 *= _2;
-    _5 *= _3;
-    _5 *= _4;
-    _5 *= sizeof(int64_t);
-    _0.data = jpl_alloc(_5);
-    int64_t _6 = 0; // l
-    int64_t _7 = 0; // k
-    int64_t _8 = 0; // j
-    int64_t _9 = 0; // i
-    _jump5:; // Begin body of loop
-    int64_t _10 = _9 + _8 + _7 + _6;
-    int64_t _11 = 0;
-    _11 *= _0.d0;
-    _11 += _9;
-    _11 *= _0.d1;
-    _11 += _8;
-    _11 *= _0.d2;
-    _11 += _7;
-    _11 *= _0.d3;
-    _11 += _6;
-    _0.data[_11] = _10;
-    _6++;
-    if (_6 < _4)
-        goto _jump5;
-    _6 = 0;
-    _7++;
-    if (_7 < _3)
-        goto _jump5;
-    _7 = 0;
-    _8++;
-    if (_8 < _2)
-        goto _jump5;
-    _8 = 0;
-    _9++;
-    if (_9 < _1)
-        goto _jump5;
-    // End body of loop
-    show("(ArrayType (IntType) 4)", &_0);
+    void_t _0 = f();
+    show("(VoidType)", &_0);
 }
 Compilation succeeded

@@ -181,39 +181,41 @@ class CodeGenerator:
                 self.generated_code.append(f"if ({loop_index} < {bound_temps[0]})")
                 self.generated_code.append(f"    goto {loop_label};")
                 return temp
+            
+
             else:
-                # 多维数组统一处理（n>=2）
-                # 生成循环变量：按反向绑定顺序生成，使得第一个生成的对应最内层
                 temp_vars = []
                 for (var, _) in reversed(expr.bounds):
                     lv = self.new_temp()
                     self.generated_code.append(f"int64_t {lv} = 0; // {var}")
                     temp_vars.append(lv)
                     self.env[var] = lv
-                # 恢复原绑定顺序用于下标计算
                 orig_order = list(reversed(temp_vars))
                 loop_label = f"_jump{self.jump_counter}"
                 self.jump_counter += 1
                 self.generated_code.append(f"{loop_label}:; // Begin body of loop")
-
-                
-                sum_temp = orig_order[0]
-                for idx in orig_order[1:]:
-                    new_sum = self.new_temp()
-                    self.generated_code.append(f"int64_t {new_sum} = {sum_temp} + {idx};")
-                    sum_temp = new_sum
-
+                if isinstance(expr.body, IntExpr) and expr.body.value == 1:
+                    const_temp = self.new_temp()
+                    self.generated_code.append(f"int64_t {const_temp} = 1;")
+                    element_val = const_temp
+                elif isinstance(expr.resolved_type.element_type, StructType):
+                    struct_name = expr.resolved_type.element_type.name
+                    struct_var = self.new_temp()
+                    self.generated_code.append(f"{struct_name} {struct_var} = {{ {', '.join(orig_order)} }};")
+                    element_val = struct_var
+                else:
+                    sum_temp = orig_order[0]
+                    for lv in orig_order[1:]:
+                        new_sum = self.new_temp()
+                        self.generated_code.append(f"int64_t {new_sum} = {sum_temp} + {lv};")
+                        sum_temp = new_sum
+                    element_val = sum_temp
                 flat = self.new_temp()
-
-
-
-
                 self.generated_code.append(f"int64_t {flat} = 0;")
                 for d in range(len(orig_order)):
                     self.generated_code.append(f"{flat} *= _0.d{d};")
                     self.generated_code.append(f"{flat} += {orig_order[d]};")
-                self.generated_code.append(f"_0.data[{flat}] = {sum_temp};")
-
+                self.generated_code.append(f"_0.data[{flat}] = {element_val};")
                 self.generated_code.append(f"{temp_vars[0]}++;")
                 self.generated_code.append(f"if ({temp_vars[0]} < {bound_temps[-1]})")
                 self.generated_code.append(f"    goto {loop_label};")
@@ -467,11 +469,10 @@ class CodeGenerator:
         elif isinstance(cmd, ShowCmd):
             temp = self.gen_expr(cmd.expr, top_level=True)
             stype = cmd.expr.resolved_type
-            if isinstance(stype, ArrayType) and isinstance(stype.element_type, StructType) and stype.element_type.name == "rgba":
+            if isinstance(stype, ArrayType) and isinstance(stype.element_type, StructType):
+                # 对于数组，其元素类型为结构体，无论是否在 struct_field_map 中，都转换为 tuple 表示
                 type_str = f"(ArrayType {self.struct_to_tuple_sexp(stype.element_type)} {stype.dimension})"
-            elif isinstance(stype, StructType) and stype.name == "rgba":
-                type_str = self.struct_to_tuple_sexp(stype)
-            elif isinstance(stype, StructType) and stype.name in self.struct_field_map:
+            elif isinstance(stype, StructType):
                 type_str = self.struct_to_tuple_sexp(stype)
             else:
                 type_str = stype.to_s_expression()
@@ -520,14 +521,10 @@ class CodeGenerator:
         else:
             self.generated_code.append(f"// Unhandled command: {cmd.to_s_expression()}")
 
-
-
     def generate_function(self, cmd: FnCmd) -> str:
-        # 保存当前全局生成状态
         old_generated = self.generated_code
         old_counter = self.temp_counter
         old_jump = self.jump_counter
-        # 重置生成状态用于函数体生成
         self.generated_code = []
         self.temp_counter = 0
         self.jump_counter = 1
@@ -543,26 +540,24 @@ class CodeGenerator:
         else:
             params_str = ""
 
-        # 生成函数体：对每个语句调用 gen_expr 生成代码
         has_return = False
         for stmt in cmd.body:
             if isinstance(stmt, ReturnStmt):
-                # 生成 return 语句
-                expr_temp = self.gen_expr(stmt.expr)
+                expr_temp = self.gen_expr(stmt.expr, top_level=False)
                 self.generated_code.append(f"return {expr_temp};")
                 has_return = True
+            elif isinstance(stmt, LetStmt):
+                expr_temp = self.gen_expr(stmt.expr, top_level=False)
+
             else:
-                # 对于 LetCmd（例如 let a = 1），gen_expr 会生成赋值代码（例如 int64_t _0 = 1;）
-                self.gen_expr(stmt)
-        # 如果返回类型为 void_t 且没有显式 return，则添加隐式返回
+                self.gen_expr(stmt, top_level=False)
+
         if ret_type_str == "void_t" and not has_return:
             temp_void = self.new_temp()
             self.generated_code.append(f"void_t {temp_void} = {{}};")
             self.generated_code.append(f"return {temp_void};")
 
         body_lines = self.generated_code[:]
-
-        # 恢复全局生成状态
         self.generated_code = old_generated
         self.temp_counter = old_counter
         self.jump_counter = old_jump

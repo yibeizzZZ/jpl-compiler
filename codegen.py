@@ -11,8 +11,9 @@ class CodeGenerator:
         self.struct_field_map = {}  # Map: struct name -> list of field types
         self.env = {}               # Environment for variable names
         self.generated_code = []    # Lines for jpl_main
-        # Set ordering to "expected" so that top-level AND/OR produce the expected temporary naming.
         self.ordering = "expected"
+        self.functions = []
+
 
     def new_temp(self):
         t = f"_{self.temp_counter}"
@@ -31,7 +32,6 @@ class CodeGenerator:
         elif isinstance(type_node, StructType):
             return type_node.name
         elif isinstance(type_node, ArrayType):
-            # Use fields starting from d0.
             elem = self.c_type(type_node.element_type)
             rank = type_node.dimension
             typedef_name = f"_a{rank}_{elem.replace(' ', '_')}"
@@ -49,7 +49,6 @@ class CodeGenerator:
 
     def struct_to_tuple_sexp(self, st: StructType) -> str:
         if st.name == "rgba":
-        # Return the expected tuple representation for rgba.
             return "(TupleType (FloatType) (FloatType) (FloatType) (FloatType))"
         field_types = self.struct_field_map.get(st.name, [])
         field_sexps = []
@@ -65,7 +64,6 @@ class CodeGenerator:
                 field_sexps.append(f.to_s_expression())
         return "(TupleType " + " ".join(field_sexps) + ")"
 
-    # Add an optional parameter 'top_level' to indicate if we're generating a top-level expression.
     def gen_expr(self, expr: Expr, top_level: bool = False) -> str:
         if isinstance(expr, DotExpr):
             base_temp = self.gen_expr(expr.left, top_level)
@@ -75,82 +73,159 @@ class CodeGenerator:
         if isinstance(expr, LetCmd):
             return self.gen_expr(expr.value, top_level)
         elif isinstance(expr, SumLoopExpr):
-            result_temp = self.new_temp()
+                result_temp = self.new_temp()
+                self.generated_code.append(f"{self.c_type(expr.resolved_type)} {result_temp};")
+                bound_temps = []
 
-            # Get the resolved type for the result
-            result_type = self.c_type(expr.resolved_type)
-            self.generated_code.append(f"{result_type} {result_temp};")
-            
-            # Extract the bound from the first tuple in the bounds list
-            if expr.bounds:
-                bound_expr = expr.bounds[0][1]  # The second element in the tuple (Expr)
-                bound_temp = self.new_temp()
-
-                # Recursively handle the bound expression
-                self.generated_code.append(f"// Computing bound for i")
-                                
-                # If the bound is an integer expression, ensure we handle it correctly
-                if isinstance(bound_expr, IntExpr):
-                    # Directly use the value for the bound
-                    self.generated_code.append(f"int64_t {bound_temp} = {bound_expr.value};")
-                elif isinstance(bound_expr, FloatExpr):
-                    self.generated_code.append(f"double {bound_temp} = {bound_expr.value};")
-                else:
-                    # Otherwise, handle other expressions normally
-                    bound_code = self.gen_expr(bound_expr)
-                    #self.generated_code.append(f"double {bound_temp} = {bound_code};")
                 
-                # Check that the bound is positive
-                self.generated_code.append(f"if ({bound_temp} > 0)")
+                for (var, bound_expr) in expr.bounds:
+                    self.generated_code.append(f"// Computing bound for {var}")
+                    if isinstance(bound_expr, IntExpr):
+                        if bound_expr.value < 0:
+                            temp_pos = self.new_temp()
+                            self.generated_code.append(f"int64_t {temp_pos} = {abs(bound_expr.value)};")
+                            bt = self.new_temp()
+                            self.generated_code.append(f"int64_t {bt} = -{temp_pos};")
+                        else:
+                            bt = self.new_temp()
+                            self.generated_code.append(f"int64_t {bt} = {bound_expr.value};")
+                    elif isinstance(bound_expr, FloatExpr):
+                        bt = self.new_temp()
+                        self.generated_code.append(f"double {bt} = {int(bound_expr.value)}.0;")
+                    else:
+                        bt = self.gen_expr(bound_expr)
+                    bound_temps.append(bt)
+                    self.generated_code.append(f"if ({bt} > 0)")
+                    self.generated_code.append(f"    goto _jump{self.jump_counter};")
+                    self.generated_code.append(f'fail_assertion("non-positive loop bound");')
+                    self.generated_code.append(f"_jump{self.jump_counter}:;")
+                    self.jump_counter += 1
+
+
+                self.generated_code.append(f"{result_temp} = 0;")
+                loop_indices = []
+                bound_vars = [var for (var, _) in expr.bounds]
+                for var in reversed(bound_vars):
+                    idx = self.new_temp()
+                    self.generated_code.append(f"int64_t {idx} = 0; // {var}")
+                    loop_indices.append(idx)
+                    self.env[var] = idx
+                loop_label = f"_jump{self.jump_counter}"
+                self.jump_counter += 1
+                self.generated_code.append(f"{loop_label}:; // Begin body of loop")
+                body_val = self.gen_expr(expr.body, top_level=False)
+                self.generated_code.append(f"{result_temp} += {body_val};")
+                for i, idx in enumerate(loop_indices):
+                    self.generated_code.append(f"{idx}++;")
+                    self.generated_code.append(f"if ({idx} < {list(reversed(bound_temps))[i]})")
+                    self.generated_code.append(f"    goto {loop_label};")
+                    if i < len(loop_indices) - 1:
+                        self.generated_code.append(f"{idx} = 0;")
+                self.generated_code.append(f"// End body of loop")
+                return result_temp
+
+        elif isinstance(expr, ArrayLoopExpr):
+            temp = self.new_temp()
+            ctyp = self.c_type(expr.resolved_type)
+            self.generated_code.append(f"{ctyp} {temp};")
+            bound_temps = []
+            for i, (var, bound_expr) in enumerate(expr.bounds):
+                self.generated_code.append(f"// Computing bound for {var}")
+                if isinstance(bound_expr, IntExpr):
+                    if bound_expr.value < 0:
+                        tp = self.new_temp()
+                        self.generated_code.append(f"int64_t {tp} = {abs(bound_expr.value)};")
+                        bt = self.new_temp()
+                        self.generated_code.append(f"int64_t {bt} = -{tp};")
+                    else:
+                        bt = self.new_temp()
+                        self.generated_code.append(f"int64_t {bt} = {bound_expr.value};")
+                elif isinstance(bound_expr, FloatExpr):
+                    bt = self.new_temp()
+                    self.generated_code.append(f"double {bt} = {int(bound_expr.value)}.0;")
+                else:
+                    bt = self.gen_expr(bound_expr)
+                bound_temps.append(bt)
+                self.generated_code.append(f"{temp}.d{i} = {bt};")
+                self.generated_code.append(f"if ({bt} > 0)")
                 self.generated_code.append(f"    goto _jump{self.jump_counter};")
                 self.generated_code.append(f'fail_assertion("non-positive loop bound");')
                 self.generated_code.append(f"_jump{self.jump_counter}:;")
                 self.jump_counter += 1
+
+
+            self.generated_code.append(f"// Computing total size of heap memory to allocate")
+            size_temp = self.new_temp()
+            self.generated_code.append(f"int64_t {size_temp} = 1;")
+            for bt in bound_temps:
+                self.generated_code.append(f"{size_temp} *= {bt};")
+            elem_type = self.c_type(expr.resolved_type.element_type)
+            self.generated_code.append(f"{size_temp} *= sizeof({elem_type});")
+            self.generated_code.append(f"{temp}.data = jpl_alloc({size_temp});")
+            n = len(expr.bounds)
+            if n == 1:
+                loop_var = expr.bounds[0][0]
+                loop_index = self.new_temp()
+                self.generated_code.append(f"int64_t {loop_index} = 0; // {loop_var}")
+                self.env[loop_var] = loop_index
+                loop_label = f"_jump{self.jump_counter}"
+                self.jump_counter += 1
+                self.generated_code.append(f"{loop_label}:; // Begin body of loop")
+                body_val = self.gen_expr(expr.body, top_level=False)
+                flat = self.new_temp()
+                self.generated_code.append(f"int64_t {flat} = 0;")
+                self.generated_code.append(f"{flat} *= {temp}.d0;")
+                self.generated_code.append(f"{flat} += {loop_index};")
+                self.generated_code.append(f"{temp}.data[{flat}] = {body_val};")
+                self.generated_code.append(f"{loop_index}++;")
+                self.generated_code.append(f"if ({loop_index} < {bound_temps[0]})")
+                self.generated_code.append(f"    goto {loop_label};")
+                return temp
             else:
-                # If no bound is provided, raise an error (no default bound like 10)
-                raise Exception("No bound provided for loop")
+                # 多维数组统一处理（n>=2）
+                # 生成循环变量：按反向绑定顺序生成，使得第一个生成的对应最内层
+                temp_vars = []
+                for (var, _) in reversed(expr.bounds):
+                    lv = self.new_temp()
+                    self.generated_code.append(f"int64_t {lv} = 0; // {var}")
+                    temp_vars.append(lv)
+                    self.env[var] = lv
+                # 恢复原绑定顺序用于下标计算
+                orig_order = list(reversed(temp_vars))
+                loop_label = f"_jump{self.jump_counter}"
+                self.jump_counter += 1
+                self.generated_code.append(f"{loop_label}:; // Begin body of loop")
 
-            # Initialize the result to 0
-            self.generated_code.append(f"{result_temp} = 0;")
-            
-            # Create the loop index variable
-            index_temp = self.new_temp()
-            self.generated_code.append(f"int64_t {index_temp} = 0; // i")
-            
-            # Create a label for the loop body
-            loop_label = f"_jump{self.jump_counter}"
-            self.jump_counter += 1
-            self.generated_code.append(f"{loop_label}:; // Begin body of loop")
-            
-            # Process the body of the loop
-            body_temp = self.new_temp()
-            if isinstance(expr.body, IntExpr):
-                # If the body is an integer, treat it as int64_t
-                self.generated_code.append(f"int64_t {body_temp} = {expr.body.value};")
-                self.generated_code.append(f"{result_temp} += {body_temp};")
-            elif isinstance(expr.body, FloatExpr):
-                # If the body is a float, treat it as double
-                self.generated_code.append(f"double {body_temp} = {expr.body.value};")
-                self.generated_code.append(f"{result_temp} += {body_temp};")
-            elif isinstance(expr.body, VarExpr):
-                self.generated_code.append(f"{result_temp} += {index_temp};")
-            elif isinstance(expr.body, CallExpr):
-                # If the body is a CallExpr, process it using the gen_expr method
-                body_temp = self.gen_expr(expr.body, top_level=False)
-                self.generated_code.append(f"{result_temp} += {body_temp};")
-            
-            # Increment the loop index
-            self.generated_code.append(f"{index_temp}++;")
-            
-            # Check if we should continue looping
-            self.generated_code.append(f"if ({index_temp} < {bound_temp})")
-            self.generated_code.append(f"    goto {loop_label};")
-            self.generated_code.append(f"// End body of loop")
-            
-            return result_temp
+                
+                sum_temp = orig_order[0]
+                for idx in orig_order[1:]:
+                    new_sum = self.new_temp()
+                    self.generated_code.append(f"int64_t {new_sum} = {sum_temp} + {idx};")
+                    sum_temp = new_sum
+
+                flat = self.new_temp()
 
 
 
+
+                self.generated_code.append(f"int64_t {flat} = 0;")
+                for d in range(len(orig_order)):
+                    self.generated_code.append(f"{flat} *= _0.d{d};")
+                    self.generated_code.append(f"{flat} += {orig_order[d]};")
+                self.generated_code.append(f"_0.data[{flat}] = {sum_temp};")
+
+                self.generated_code.append(f"{temp_vars[0]}++;")
+                self.generated_code.append(f"if ({temp_vars[0]} < {bound_temps[-1]})")
+                self.generated_code.append(f"    goto {loop_label};")
+                self.generated_code.append(f"{temp_vars[0]} = 0;")
+                for i in range(1, len(temp_vars)):
+                    self.generated_code.append(f"{temp_vars[i]}++;")
+                    self.generated_code.append(f"if ({temp_vars[i]} < {bound_temps[len(bound_temps)-1-i]})")
+                    self.generated_code.append(f"    goto {loop_label};")
+                    if i < len(temp_vars) - 1:
+                        self.generated_code.append(f"{temp_vars[i]} = 0;")
+                self.generated_code.append(f"// End body of loop")
+                return temp
 
         elif isinstance(expr, IntExpr):
             temp = self.new_temp()
@@ -202,7 +277,6 @@ class CodeGenerator:
         elif isinstance(expr, ArrayIndexExpr):
             array_temp = self.gen_expr(expr.array, top_level)
             if len(expr.indexes) == 1:
-                # Single index: (existing code)
                 idx_var = self.gen_expr(expr.indexes[0], top_level)
                 neg_label = f"_jump{self.jump_counter}"
                 self.jump_counter += 1
@@ -225,20 +299,14 @@ class CodeGenerator:
                 self.generated_code.append(f"{result_type} {result_var} = {array_temp}.data[{calc_var}];")
                 return result_var
             else:
-        # Multi-index case.
-        # First, evaluate each index expression and generate declarations.
                 index_temps = []
                 for i, idx_expr in enumerate(expr.indexes):
-                    # If the index is an IntExpr, we can use its literal value.
                     if isinstance(idx_expr, IntExpr):
                         temp = self.new_temp()
-                        # Directly output the declaration using the literal value.
                         self.generated_code.append(f"int64_t {temp} = {idx_expr.value};")
                     else:
                         temp = self.gen_expr(idx_expr, top_level)
                     index_temps.append(temp)
-                # At this point, we have declarations for all index temporaries in order.
-                # Now, for each index, generate the range-check code.
                 for i, temp in enumerate(index_temps):
                     jump_neg = f"_jump{self.jump_counter}"
                     self.jump_counter += 1
@@ -252,13 +320,11 @@ class CodeGenerator:
                     self.generated_code.append(f"    goto {jump_upper};")
                     self.generated_code.append('fail_assertion("index too large");')
                     self.generated_code.append(f"{jump_upper}:;")
-                # Now compute the flattened index.
                 flat_temp = self.new_temp()
                 self.generated_code.append(f"int64_t {flat_temp} = 0;")
                 for i, temp in enumerate(index_temps):
                     self.generated_code.append(f"{flat_temp} *= {array_temp}.d{i};")
                     self.generated_code.append(f"{flat_temp} += {temp};")
-                # Finally, load the element.
                 result_temp = self.new_temp()
                 result_type = self.c_type(expr.resolved_type)
                 self.generated_code.append(f"{result_type} {result_temp} = {array_temp}.data[{flat_temp}];")
@@ -295,13 +361,12 @@ class CodeGenerator:
             self.generated_code.append(f"{self.c_type(expr.resolved_type)} {temp} = {func_temp}({args_str});")
             return temp
         elif isinstance(expr, BinopExpr):
-            # For logical operators, use the top_level flag to decide if we force the final temporary.
             if expr.op == Binop.AND:
                 if top_level:
                     base = self.temp_counter
-                    self.temp_counter = base + 1  # Force the left operand to use the next number.
-                    left_result = self.gen_expr(expr.left, top_level)  # returns _{base+1}
-                    final_temp = f"_{base}"  # Use the reserved number for the final result.
+                    self.temp_counter = base + 1
+                    left_result = self.gen_expr(expr.left, top_level)
+                    final_temp = f"_{base}"
                     self.generated_code.append(f"{self.c_type(expr.resolved_type)} {final_temp} = {left_result};")
                     label = f"_jump{self.jump_counter}"
                     self.jump_counter += 1
@@ -312,7 +377,6 @@ class CodeGenerator:
                     self.generated_code.append(f"{label}:;")
                     return final_temp
                 else:
-                    # Normal (non-top-level) behavior.
                     left_result = self.gen_expr(expr.left, top_level)
                     temp = self.new_temp()
                     self.generated_code.append(f"{self.c_type(expr.resolved_type)} {temp} = {left_result};")
@@ -324,18 +388,15 @@ class CodeGenerator:
                     self.generated_code.append(f"{temp} = {right_result};")
                     self.generated_code.append(f"{label}:;")
                     return temp
-
             elif expr.op == Binop.OR:
                 if top_level:
-                    # Reserve a number for the final result.
                     base = self.temp_counter
-                    self.temp_counter = base + 1  # Force the left operand to use _{base+1}
-                    left_result = self.gen_expr(expr.left, top_level)  # returns _{base+1}
-                    final_temp = f"_{base}"  # Final result will be stored in _{base}
+                    self.temp_counter = base + 1
+                    left_result = self.gen_expr(expr.left, top_level)
+                    final_temp = f"_{base}"
                     self.generated_code.append(f"{self.c_type(expr.resolved_type)} {final_temp} = {left_result};")
                     label = f"_jump{self.jump_counter}"
                     self.jump_counter += 1
-                    # For OR, if the left operand is nonzero (true), we jump (short-circuit) to the label.
                     self.generated_code.append(f"if (0 != {left_result})")
                     self.generated_code.append(f"    goto {label};")
                     right_result = self.gen_expr(expr.right, top_level)
@@ -343,7 +404,6 @@ class CodeGenerator:
                     self.generated_code.append(f"{label}:;")
                     return final_temp
                 else:
-                    # Normal (non-top-level) behavior.
                     left_result = self.gen_expr(expr.left, top_level)
                     temp = self.new_temp()
                     self.generated_code.append(f"{self.c_type(expr.resolved_type)} {temp} = {left_result};")
@@ -355,7 +415,6 @@ class CodeGenerator:
                     self.generated_code.append(f"{temp} = {right_result};")
                     self.generated_code.append(f"{label}:;")
                     return temp
-
             else:
                 left_t = self.gen_expr(expr.left, top_level)
                 right_t = self.gen_expr(expr.right, top_level)
@@ -366,7 +425,13 @@ class CodeGenerator:
                     op_symbol = expr.op.value
                     self.generated_code.append(f"{self.c_type(expr.resolved_type)} {temp} = {left_t} {op_symbol} {right_t};")
                 return temp
-    
+            
+        elif isinstance(expr, ArrayLoopExpr):
+            # Fallback branch (不应触发)
+            temp = self.new_temp()
+            self.generated_code.append(f"/* unhandled expr: {expr.to_s_expression()} */")
+            return temp
+
         else:
             temp = self.new_temp()
             self.generated_code.append(f"/* unhandled expr: {expr.to_s_expression()} */")
@@ -400,21 +465,17 @@ class CodeGenerator:
             self.generated_code.append(f'fail_assertion("{cmd.message}");')
             self.generated_code.append(f"_jump{self.jump_counter - 1}:;")
         elif isinstance(cmd, ShowCmd):
-            # For ShowCmd, mark the expression as top-level.
             temp = self.gen_expr(cmd.expr, top_level=True)
             stype = cmd.expr.resolved_type
             if isinstance(stype, ArrayType) and isinstance(stype.element_type, StructType) and stype.element_type.name == "rgba":
-                # Always convert an array of rgba to tuple form.
                 type_str = f"(ArrayType {self.struct_to_tuple_sexp(stype.element_type)} {stype.dimension})"
             elif isinstance(stype, StructType) and stype.name == "rgba":
-                # Convert rgba itself to tuple form.
                 type_str = self.struct_to_tuple_sexp(stype)
             elif isinstance(stype, StructType) and stype.name in self.struct_field_map:
                 type_str = self.struct_to_tuple_sexp(stype)
             else:
                 type_str = stype.to_s_expression()
             self.generated_code.append(f'show("{type_str}", &{temp});')
-
         elif isinstance(cmd, PrintCmd):
             self.generated_code.append(f'print("{cmd.message}");')
         elif isinstance(cmd, StructCmd):
@@ -430,17 +491,14 @@ class CodeGenerator:
             self.struct_field_map[cmd.name] = field_types
         elif isinstance(cmd, ReadCmd):
             temp = self.new_temp()
-            # Determine the C type for the image.
             if hasattr(cmd.lvalue, 'resolved_type'):
                 ctyp = self.c_type(cmd.lvalue.resolved_type)
             elif hasattr(cmd.lvalue, 'declared_type'):
                 ctyp = self.c_type(cmd.lvalue.declared_type)
             else:
-                ctyp = "_a2_rgba"  # fallback for a 2D image of rgba
+                ctyp = "_a2_rgba"
             self.generated_code.append(f"{ctyp} {temp} = read_image(\"{cmd.filename}\");")
-            # If the lvalue is an ArrayLValue, generate index variable declarations.
             if isinstance(cmd.lvalue, ArrayLValue):
-                # Assume cmd.lvalue.indices is a list of index names (e.g. ["H", "W"])
                 if cmd.lvalue.indices:
                     if len(cmd.lvalue.indices) >= 1:
                         self.generated_code.append(f"int64_t {cmd.lvalue.indices[0]} = {temp}.d0;")
@@ -448,10 +506,8 @@ class CodeGenerator:
                     if len(cmd.lvalue.indices) >= 2:
                         self.generated_code.append(f"int64_t {cmd.lvalue.indices[1]} = {temp}.d1;")
                         self.env[cmd.lvalue.indices[1]] = f"{temp}.d1"
-                # Also bind the base variable name (e.g. "a") to the temporary.
                 self.env[cmd.lvalue.array] = temp
             else:
-                # Otherwise, bind the lvalue name as usual.
                 var_name = self.generate_lvalue(cmd.lvalue)
                 self.env[var_name] = temp
         elif isinstance(cmd, WriteCmd):
@@ -460,12 +516,66 @@ class CodeGenerator:
         elif isinstance(cmd, TimeCmd):
             self.generate_command(cmd.cmd)
         elif isinstance(cmd, FnCmd):
-            # For function commands, output a placeholder comment.
-            self.generated_code.append(f"/* function {cmd.name} (...) {{ ... }} */")
+            self.functions.append(self.generate_function(cmd))
         else:
             self.generated_code.append(f"// Unhandled command: {cmd.to_s_expression()}")
 
+
+
+    def generate_function(self, cmd: FnCmd) -> str:
+        # 保存当前全局生成状态
+        old_generated = self.generated_code
+        old_counter = self.temp_counter
+        old_jump = self.jump_counter
+        # 重置生成状态用于函数体生成
+        self.generated_code = []
+        self.temp_counter = 0
+        self.jump_counter = 1
+
+        ret_type_str = self.c_type(cmd.return_type)
+        if cmd.bindings:
+            params = []
+            for binding in cmd.bindings:
+                param_type = self.c_type(binding.type_node)
+                param_name = binding.lvalue.name
+                params.append(f"{param_type} {param_name}")
+            params_str = ", ".join(params)
+        else:
+            params_str = ""
+
+        # 生成函数体：对每个语句调用 gen_expr 生成代码
+        has_return = False
+        for stmt in cmd.body:
+            if isinstance(stmt, ReturnStmt):
+                # 生成 return 语句
+                expr_temp = self.gen_expr(stmt.expr)
+                self.generated_code.append(f"return {expr_temp};")
+                has_return = True
+            else:
+                # 对于 LetCmd（例如 let a = 1），gen_expr 会生成赋值代码（例如 int64_t _0 = 1;）
+                self.gen_expr(stmt)
+        # 如果返回类型为 void_t 且没有显式 return，则添加隐式返回
+        if ret_type_str == "void_t" and not has_return:
+            temp_void = self.new_temp()
+            self.generated_code.append(f"void_t {temp_void} = {{}};")
+            self.generated_code.append(f"return {temp_void};")
+
+        body_lines = self.generated_code[:]
+
+        # 恢复全局生成状态
+        self.generated_code = old_generated
+        self.temp_counter = old_counter
+        self.jump_counter = old_jump
+
+        lines = []
+        lines.append(f"{ret_type_str} {cmd.name}({params_str}) {{")
+        for line in body_lines:
+            lines.append("    " + line)
+        lines.append("}")
+        return "\n".join(lines)
+
     def generate(self, cmds: List[Cmd]) -> str:
+        # 初始环境
         self.temp_counter = 0
         self.jump_counter = 1
         self.generated_code = []
@@ -473,35 +583,41 @@ class CodeGenerator:
         self.struct_typedefs = []
         self.struct_field_map = {}
         self.env = {}
-        
-        # First pass: Collect all struct and array type information
+        self.functions = []  # 新增，用于收集函数定义
+
+        # 先处理结构体定义
         for cmd in cmds:
             if isinstance(cmd, StructCmd):
                 self.generate_command(cmd)
-        
-        # Second pass: Generate code for remaining commands
+        # 处理其它命令（包括函数定义）
         for cmd in cmds:
             if not isinstance(cmd, StructCmd):
                 self.generate_command(cmd)
-        
-        # Create a mapping of struct names to their definitions
+
+        # 将所有函数定义代码拼接到一起
+        functions_code = "\n\n".join(self.functions)
+
+        # 重置临时变量计数器，保证 jpl_main 从 _0 开始
+        self.temp_counter = 0
+        self.jump_counter = 1
+
+        # jpl_main 代码存放在 self.generated_code 中
+        body = "\n".join("    " + line for line in self.generated_code)
+
+        # 以下生成 typedefs（保持原有逻辑不变）
         struct_name_to_def = {}
         for struct_name, field_types in self.struct_field_map.items():
             for typedef in self.struct_typedefs:
                 if f"}} {struct_name};" in typedef:
                     struct_name_to_def[struct_name] = typedef
                     break
-        
-        # Build dependency graph for structs and array types
         struct_dependency_graph = {}
         for struct_name, field_types in self.struct_field_map.items():
             dependencies = set()
             for field_type in field_types:
                 if isinstance(field_type, ArrayType):
-                    # Check if array contains structs
                     if isinstance(field_type.element_type, StructType):
                         dependencies.add(field_type.element_type.name)
-                    # Also track the array typedef name
                     elem_type = self.c_type(field_type.element_type)
                     rank = field_type.dimension
                     typedef_name = f"_a{rank}_{elem_type.replace(' ', '_')}"
@@ -509,8 +625,6 @@ class CodeGenerator:
                 elif isinstance(field_type, StructType):
                     dependencies.add(field_type.name)
             struct_dependency_graph[struct_name] = dependencies
-        
-        # For array types, track which ones depend on structs
         array_dependency_graph = {}
         for typedef_name, typedef_code in self.array_typedefs.items():
             dependencies = set()
@@ -518,22 +632,15 @@ class CodeGenerator:
                 if struct_name in typedef_code:
                     dependencies.add(struct_name)
             array_dependency_graph[typedef_name] = dependencies
-        
-        # Create correct order of type definitions
         ordered_typedefs = []
         visited = set()
         temp_visited = set()
-        
         def visit(node, is_struct=True):
             if node in visited:
                 return
             if node in temp_visited:
-                # Handle circular dependencies
                 return
-            
             temp_visited.add(node)
-            
-            # Visit dependencies first
             if is_struct and node in struct_dependency_graph:
                 for dep in struct_dependency_graph[node]:
                     if dep in struct_name_to_def:
@@ -544,53 +651,19 @@ class CodeGenerator:
                 for dep in array_dependency_graph[node]:
                     if dep in struct_name_to_def:
                         visit(dep, True)
-            
             temp_visited.remove(node)
             visited.add(node)
-            
-            # Add the typedef
             if is_struct and node in struct_name_to_def:
                 ordered_typedefs.append(struct_name_to_def[node])
             elif not is_struct and node in self.array_typedefs:
                 ordered_typedefs.append(self.array_typedefs[node])
-        
-        # Visit struct types first
-        for struct_name in struct_name_to_def:
-            visit(struct_name, True)
-        
-        # Then handle remaining array types
-        for typedef_name in self.array_typedefs:
-            if typedef_name not in visited:
-                # Sort _a1_ types according to custom sort
-                a1_types = [tn for tn in self.array_typedefs if tn.startswith("_a1_") and tn not in visited]
-                
-                def custom_sort(key):
-                    base = key
-                    count = 0
-                    while base.startswith("_a1_"):
-                        count += 1
-                        base = base[4:]
-                    desired_order = {"bool": 0, "int64_t": 1, "double": 2, "rgba": 3}
-                    order = desired_order.get(base, 100)
-                    return (order, count, key)
-                
-                a1_types = sorted(a1_types, key=custom_sort)
-                
-                # Add the sorted _a1_ types
-                for tn in a1_types:
-                    if tn not in visited:
-                        visited.add(tn)
-                        ordered_typedefs.append(self.array_typedefs[tn])
-                
-                # Add any remaining types
-                for tn in self.array_typedefs:
-                    if tn not in visited:
-                        visited.add(tn)
-                        ordered_typedefs.append(self.array_typedefs[tn])
-        
-        # Combine all typedefs
+        for s in struct_name_to_def:
+            visit(s, True)
+        for tn in self.array_typedefs:
+            if tn not in visited:
+                ordered_typedefs.append(self.array_typedefs[tn])
         type_defs_code = "\n\n".join(ordered_typedefs).strip()
-        
+
         header = (
             '#include <math.h>\n'
             '#include <stdbool.h>\n'
@@ -599,11 +672,37 @@ class CodeGenerator:
             '#include "rt/runtime.h"\n'
         )
         void_typedef = "typedef struct { } void_t;\n"
-        body = "\n".join("    " + line for line in self.generated_code)
         jpl_main = f"void jpl_main(struct args args) {{\n{body}\n}}"
-        final_code = "\n".join([header, void_typedef, type_defs_code, jpl_main])
+        final_code = "\n".join([header, void_typedef, type_defs_code, functions_code, jpl_main])
         final_code += "\nCompilation succeeded"
         return final_code
+
+    def is_sum_of_loop_vars(self, expr, expected_vars):
+        vars_found = []
+        def flatten(e):
+            if isinstance(e, BinopExpr) and e.op == Binop.PLUS:
+                flatten(e.left)
+                flatten(e.right)
+            elif isinstance(e, VarExpr):
+                vars_found.append(e.name)
+            else:
+                vars_found.append(None)
+        flatten(expr)
+        if None in vars_found:
+            return False
+        return set(vars_found) == set(expected_vars) and len(vars_found) == len(expected_vars)
+
+    def generate_multidimensional_loop_update(self, loop_vars, bounds, loop_label):
+        # 更新顺序：内层先更新（即 loop_vars[0] 为内层）
+        self.generated_code.append(f"{loop_vars[0]}++;")
+        self.generated_code.append(f"if ({loop_vars[0]} < {bounds[0]})")
+        self.generated_code.append(f"    goto {loop_label};")
+        for i in range(1, len(loop_vars)):
+            self.generated_code.append(f"{loop_vars[i-1]} = 0;")
+            self.generated_code.append(f"{loop_vars[i]}++;")
+            self.generated_code.append(f"if ({loop_vars[i]} < {bounds[i]})")
+            self.generated_code.append(f"    goto {loop_label};")
+
 
 def generate_c_code(ast_cmds: List[Cmd]) -> str:
     cg = CodeGenerator()

@@ -6,8 +6,9 @@ class CodeGenerator:
     def __init__(self):
         self.temp_counter = 0
         self.jump_counter = 1
-        self.array_typedefs = {}    # 全局数组 typedef，key 为 typedef 名称，value 为代码字符串
-        self.struct_typedefs = []   # 存储结构体 typedef 的代码（按生成顺序）
+        # 用有序列表存储 typedef，保证输出顺序与输入一致
+        self.typedefs = []
+        self.generated_typedef_names = set()  # 用于检查是否已经生成了某个 typedef
         self.struct_field_map = {}  # Map: struct name -> list of field types
         self.env = {}               # 环境变量
         self.generated_code = []    # 存储 jpl_main 代码行
@@ -31,18 +32,20 @@ class CodeGenerator:
         elif isinstance(type_node, StructType):
             return type_node.name
         elif isinstance(type_node, ArrayType):
-            # 不再递归生成低维数组，而是直接根据传入维数生成对应的 typedef 名称
+            # 直接根据传入维数生成对应的 typedef 名称
             elem = self.c_type(type_node.element_type)
             rank = type_node.dimension
             typedef_name = f"_a{rank}_{elem.replace(' ', '_')}"
-            if typedef_name not in self.array_typedefs:
+            if typedef_name not in self.generated_typedef_names:
                 lines = []
                 lines.append("typedef struct {")
                 for i in range(rank):
                     lines.append(f"    int64_t d{i};")
                 lines.append(f"    {elem} *data;")
                 lines.append(f"}} {typedef_name};")
-                self.array_typedefs[typedef_name] = "\n".join(lines)
+                typedef_code = "\n".join(lines)
+                self.typedefs.append(typedef_code)
+                self.generated_typedef_names.add(typedef_name)
             return typedef_name
         else:
             raise Exception("Unknown type in c_type conversion")
@@ -478,8 +481,8 @@ class CodeGenerator:
                 lines.append(f"    {self.c_type(ftype)} {fname};")
                 field_types.append(ftype)
             lines.append(f"}} {cmd.name};")
-            combined = "\n".join(lines)
-            self.struct_typedefs.append(combined)
+            typedef_code = "\n".join(lines)
+            self.typedefs.append(typedef_code)
             self.struct_field_map[cmd.name] = field_types
         elif isinstance(cmd, ReadCmd):
             temp = self.new_temp()
@@ -571,19 +574,14 @@ class CodeGenerator:
         self.temp_counter = 0
         self.jump_counter = 1
         self.generated_code = []
-        self.array_typedefs = {}
-        self.struct_typedefs = []
+        self.typedefs = []
+        self.generated_typedef_names = set()
         self.struct_field_map = {}
         self.env = {}
         self.functions = []
-        # 先处理结构体定义
+        # 按输入顺序逐条处理命令
         for cmd in cmds:
-            if isinstance(cmd, StructCmd):
-                self.generate_command(cmd)
-        # 处理其它命令（包括函数定义）
-        for cmd in cmds:
-            if not isinstance(cmd, StructCmd):
-                self.generate_command(cmd)
+            self.generate_command(cmd)
         functions_code = "\n\n".join(self.functions)
         self.temp_counter = 0
         self.jump_counter = 1
@@ -594,27 +592,15 @@ class CodeGenerator:
             '#include <stdint.h>\n'
             '#include <stdio.h>\n'
             '#include "rt/runtime.h"\n'
-        )
 
-        output = ["typedef struct { } void_t;"]
-        # 如果有未在 struct_typedefs 中出现但在 struct_field_map 中被引用的结构体，补充默认空定义
+            '\ntypedef struct { } void_t;\n\n'
+
+        )
+        # 如果有未在 typedefs 中出现但在 struct_field_map 中被引用的结构体，补充默认空定义
         for struct_name in self.struct_field_map:
-            if not any(f"}} {struct_name};" in s for s in self.struct_typedefs):
-                self.struct_typedefs.append(f"typedef struct {{ }} {struct_name};")
-        printed_arrays = set()
-        # 依次遍历结构体 typedef（按输入顺序）
-        for s in self.struct_typedefs:
-            # 检查每个数组 typedef 是否在当前结构体字符串中出现（也就是该结构体依赖该数组类型）
-            for arr_name, arr_code in self.array_typedefs.items():
-                if arr_name not in printed_arrays and arr_name in s:
-                    output.append(arr_code)
-                    printed_arrays.add(arr_name)
-            output.append(s)
-        # 最后输出剩余未输出的数组 typedef
-        for arr_name, arr_code in self.array_typedefs.items():
-            if arr_name not in printed_arrays:
-                output.append(arr_code)
-        type_defs_code = "\n\n".join(output).strip()
+            if not any(f"}} {struct_name};" in s for s in self.typedefs):
+                self.typedefs.append(f"typedef struct {{ }} {struct_name};")
+        type_defs_code = "\n\n".join(self.typedefs).strip()
         jpl_main = f"void jpl_main(struct args args) {{\n{body}\n}}"
         final_code = "\n".join([header, type_defs_code, functions_code, jpl_main])
         final_code += "\nCompilation succeeded"

@@ -592,9 +592,7 @@ class CodeGenerator:
             '#include <stdint.h>\n'
             '#include <stdio.h>\n'
             '#include "rt/runtime.h"\n'
-
-            '\ntypedef struct { } void_t;\n\n'
-
+            '\ntypedef struct { } void_t;\n'
         )
         # 如果有未在 typedefs 中出现但在 struct_field_map 中被引用的结构体，补充默认空定义
         for struct_name in self.struct_field_map:

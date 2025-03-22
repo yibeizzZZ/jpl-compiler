@@ -1,66 +1,46 @@
-python3 compiler.py -i grader/hw8/ok-fuzzer/017.jpl
-#include <math.h>
-#include <stdbool.h>
-#include <stdint.h>
-#include <stdio.h>
-#include "rt/runtime.h"
+python3 compiler.py -s grader/hw10/ok/040.jpl
+global jpl_main
+global _jpl_main
+extern _fail_assertion
+extern _jpl_alloc
+extern _get_time
+extern _show
+extern _print
+extern _print_time
+extern _read_image
+extern _write_image
+extern _fmod
+extern _sqrt
+extern _exp
+extern _sin
+extern _cos
+extern _tan
+extern _asin
+extern _acos
+extern _atan
+extern _log
+extern _pow
+extern _atan2
+extern _to_int
+extern _to_float
 
-typedef struct { } void_t;
+section .data
+const1: db `(BoolType)`, 0
 
-typedef struct {
-    double a;
-} g;
-
-typedef struct {
-    int64_t d0;
-    rgba *data;
-} _a1_rgba;
-
-typedef struct {
-    int64_t d0;
-    _a1_rgba *data;
-} _a1__a1_rgba;
-
-void jpl_main(struct args args) {
-    int64_t _0 = 663;
-    int64_t _1 = 207;
-    int64_t _2 = _0 + _1;
-    int64_t _3 = 930;
-    bool _4 = _2 == _3;
-    bool _5 = !_4;
-    double _6 = 56.0;
-    int64_t _7 = 334;
-    int64_t _8 = 617;
-    bool _9 = true;
-    show("(BoolType)", &_9);
-    double _10 = 34.0;
-    double _11 = 51.0;
-    double _12 = 18.0;
-    rgba _13 = { _6, _10, _11, _12 };
-    double _14 = 23.0;
-    double _15 = 28.0;
-    rgba _16 = { _14, _6, _15, _6 };
-    _a1_rgba _17;
-    _17.d0 = 2;
-    _17.data = jpl_alloc(sizeof(rgba) * 2);
-    _17.data[0] = _13;
-    _17.data[1] = _16;
-    _a1__a1_rgba _18;
-    _18.d0 = 1;
-    _18.data = jpl_alloc(sizeof(_a1_rgba) * 1);
-    _18.data[0] = _17;
-    if (_7 >= 0)
-        goto _jump1;
-    fail_assertion("negative array index");
-    _jump1:;
-    if (_7 < _18.d0)
-        goto _jump2;
-    fail_assertion("index too large");
-    _jump2:;
-    int64_t _19 = 0;
-    _19 *= _18.d0;
-    _19 += _7;
-    _a1_rgba _20 = _18.data[_19];
-    double _21 = 72.0;
-}
+section .text
+jpl_main:
+_jpl_main:
+    push rbp
+    mov rbp, rsp
+    push r12
+    mov r12, rbp ; end of jpl_main prelude
+    /* unhandled float binary operator */
+    lea rdi, [rel const1] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    add rsp, 8
+    pop r12 ; begin jpl_main postlude
+    pop rbp
+    ret
+ 
 Compilation succeeded

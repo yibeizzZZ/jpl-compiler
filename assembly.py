@@ -1,6 +1,6 @@
 from typing import List
-from parser import lex, Parser, Cmd, ShowCmd
-from typechecker import typecheck_program, FloatType
+from parser import lex, Parser, Cmd, ShowCmd, IntType, FloatType, BoolType
+from typechecker import typecheck_program
 
 def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     num_counter = 0
@@ -48,7 +48,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         type_data_lines.append(f'{label}: db `{type_str}`, 0')
         return label
 
-    def cg_expr(expr) -> List[str]:
+    # 参数 nested 用于控制是否在内部递归中插入对齐指令（仅在最外层添加一次）
+    def cg_expr(expr, nested: bool = False) -> List[str]:
         lines = []
         if expr.__class__.__name__ == "IntExpr":
             lab = get_const(expr.value, "int")
@@ -69,7 +70,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
-                    lines.extend(cg_expr(expr.operand))
+                    lines.extend(cg_expr(expr.operand, nested))
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("pxor xmm0, xmm0")
@@ -77,12 +78,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("sub rsp, 8")
                     lines.append("movsd [rsp], xmm0")
                 else:
-                    lines.extend(cg_expr(expr.operand))
+                    lines.extend(cg_expr(expr.operand, nested))
                     lines.append("pop rax")
                     lines.append("neg rax")
                     lines.append("push rax")
             elif expr.op.value == '!':
-                lines.extend(cg_expr(expr.operand))
+                lines.extend(cg_expr(expr.operand, nested))
                 lines.append("pop rax")
                 lines.append("xor rax, 1")
                 lines.append("push rax")
@@ -92,8 +93,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             if expr.left.resolved_type.to_s_expression() == "(FloatType)":
                 if expr.op.value == '%':
                     lines.append("sub rsp, 8 ; Add alignment")
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
@@ -101,8 +102,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("call _fmod")
                     lines.append("add rsp, 8 ; Remove alignment")
                 elif expr.op.value == '==':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
@@ -112,8 +113,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '!=':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
@@ -123,62 +124,62 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '+':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("addsd xmm0, xmm1")
                 elif expr.op.value == '-':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("subsd xmm0, xmm1")
                 elif expr.op.value == '*':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("mulsd xmm0, xmm1")
                 elif expr.op.value == '/':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("divsd xmm0, xmm1")
                 elif expr.op.value == '<':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
-                    lines.append("cmplesd xmm0, xmm1")
+                    lines.append("cmpltsd xmm0, xmm1")
                     lines.append("movq rax, xmm0")
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '>':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
                     lines.append("add rsp, 8")
-                    lines.append("cmplesd xmm1, xmm0")
+                    lines.append("cmpltsd xmm1, xmm0")
                     lines.append("movq rax, xmm1")
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '<=':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
@@ -188,8 +189,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '>=':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
                     lines.append("add rsp, 8")
                     lines.append("movsd xmm1, [rsp]")
@@ -205,8 +206,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("movsd [rsp], xmm0")
             else:
                 if expr.op.value == '/':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp r10, 0")
@@ -221,8 +222,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("idiv r10")
                     lines.append("push rax")
                 elif expr.op.value == '%':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp r10, 0")
@@ -238,8 +239,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("mov rax, rdx")
                     lines.append("push rax")
                 elif expr.op.value == '==':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
@@ -247,8 +248,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '!=':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
@@ -256,29 +257,29 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '+':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("add rax, r10")
                     lines.append("push rax")
                 elif expr.op.value == '-':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("sub rax, r10")
                     lines.append("push rax")
                 elif expr.op.value == '*':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("imul rax, r10")
                     lines.append("push rax")
                 elif expr.op.value == '<':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
@@ -286,8 +287,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '>':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
@@ -295,8 +296,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '<=':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
@@ -304,8 +305,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 elif expr.op.value == '>=':
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
@@ -313,16 +314,43 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("and rax, 1")
                     lines.append("push rax")
                 else:
-                    lines.extend(cg_expr(expr.right))
-                    lines.extend(cg_expr(expr.left))
+                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop r10")
                     lines.append("pop rax")
                     lines.append("/* unhandled binary operator */")
                     lines.append("push rax")
         elif expr.__class__.__name__ == "ArrayLiteralExpr":
-            lines.append("/* array literal not implemented */")
-            lines.append("mov rax, 0")
+            nonlocal type_counter
+            n = len(expr.elements)
+            if isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
+                effective_n = n
+                elem_size = 8
+            else:
+                effective_n = 2
+                elem_size = 8
+            total_size = effective_n * elem_size
+            if not nested:
+                lines.append("sub rsp, 8 ; Add alignment")
+            for elem in reversed(expr.elements):
+                lines.extend(cg_expr(elem, nested=True))
+            lines.append(f"mov rdi, {total_size}")
+            if effective_n == 1 and isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
+                lines.append("sub rsp, 8 ; Add alignment")
+            lines.append("call _jpl_alloc")
+            if effective_n == 1 and isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
+                lines.append("add rsp, 8 ; Remove alignment")
+            lines.append(f"; Moving {total_size} bytes from rsp to rax")
+            for i in range(effective_n):
+                offset = (effective_n - 1 - i) * elem_size
+                lines.append(f"    mov r10, [rsp + {offset}]")
+                lines.append(f"    mov [rax + {offset}], r10")
+            lines.append(f"add rsp, {total_size}")
             lines.append("push rax")
+            lines.append(f"mov rax, {effective_n}")
+            lines.append("push rax")
+            if num_counter > type_counter:
+                type_counter = num_counter
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")
@@ -340,15 +368,23 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     prologue_lines.append("mov rbp, rsp")
     prologue_lines.append("push r12")
     prologue_lines.append("mov r12, rbp ; end of jpl_main prelude")
-    expr_lines.extend(cg_expr(show_cmd.expr))
+    expr_lines.extend(cg_expr(show_cmd.expr, nested=False))
     if num_counter > type_counter:
         type_counter = num_counter
     type_str = show_cmd.expr.resolved_type.to_s_expression()
     type_lab = get_type_const(type_str)
+    
+    if show_cmd.expr.__class__.__name__ == "ArrayLiteralExpr":
+        extra_restore = "add rsp, 16    ; Restore array literal result (16 bytes)"
+    else:
+        extra_restore = ""
+    
     epilogue_lines.append(f"lea rdi, [rel {type_lab}] ; '{type_str}'")
     epilogue_lines.append("lea rsi, [rsp]")
     epilogue_lines.append("call _show")
-    epilogue_lines.append("add rsp, 8")
+    if extra_restore:
+        epilogue_lines.append(extra_restore)
+    epilogue_lines.append("add rsp, 8     ; Restore alignment (8 bytes)")
     epilogue_lines.append("pop r12 ; begin jpl_main postlude")
     epilogue_lines.append("pop rbp")
     epilogue_lines.append("ret")

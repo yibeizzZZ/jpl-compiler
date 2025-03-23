@@ -1,4 +1,4 @@
-python3 compiler.py -s grader/hw10/ok/040.jpl
+python3 compiler.py -s grader/hw10/ok/054.jpl
 global jpl_main
 global _jpl_main
 extern _fail_assertion
@@ -25,7 +25,11 @@ extern _to_int
 extern _to_float
 
 section .data
-const1: db `(BoolType)`, 0
+const0: dq 5
+const1: dq 4
+const2: dq 3
+const3: dq 2
+const4: db `(ArrayType (ArrayType (ArrayType (ArrayType (IntType) 1) 1) 1) 1)`, 0
 
 section .text
 jpl_main:
@@ -34,11 +38,97 @@ _jpl_main:
     mov rbp, rsp
     push r12
     mov r12, rbp ; end of jpl_main prelude
-    /* unhandled float binary operator */
-    lea rdi, [rel const1] ; '(BoolType)'
+    sub rsp, 8 ; Add alignment
+    mov rax, [rel const0] ; 5
+    push rax
+    mov rax, [rel const1] ; 4
+    push rax
+    mov rdi, 16
+    call _jpl_alloc
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16
+    push rax
+    mov rax, 2
+    push rax
+    mov rax, [rel const2] ; 3
+    push rax
+    mov rdi, 8
+    sub rsp, 8 ; Add alignment
+    call _jpl_alloc
+    add rsp, 8 ; Remove alignment
+    ; Moving 8 bytes from rsp to rax
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 8
+    push rax
+    mov rax, 1
+    push rax
+    mov rdi, 16
+    call _jpl_alloc
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16
+    push rax
+    mov rax, 2
+    push rax
+    mov rax, [rel const3] ; 2
+    push rax
+    mov rdi, 8
+    sub rsp, 8 ; Add alignment
+    call _jpl_alloc
+    add rsp, 8 ; Remove alignment
+    ; Moving 8 bytes from rsp to rax
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 8
+    push rax
+    mov rax, 1
+    push rax
+    mov rdi, 16
+    call _jpl_alloc
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16
+    push rax
+    mov rax, 2
+    push rax
+    mov rdi, 16
+    call _jpl_alloc
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16
+    push rax
+    mov rax, 2
+    push rax
+    mov rdi, 16
+    call _jpl_alloc
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16
+    push rax
+    mov rax, 2
+    push rax
+    lea rdi, [rel const4] ; '(ArrayType (ArrayType (ArrayType (ArrayType (IntType) 1) 1) 1) 1)'
     lea rsi, [rsp]
     call _show
-    add rsp, 8
+    add rsp, 16    ; Restore array literal result (16 bytes)
+    add rsp, 8     ; Restore alignment (8 bytes)
     pop r12 ; begin jpl_main postlude
     pop rbp
     ret

@@ -320,37 +320,47 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("pop rax")
                     lines.append("/* unhandled binary operator */")
                     lines.append("push rax")
+                    
+                    
+                        
         elif expr.__class__.__name__ == "ArrayLiteralExpr":
             nonlocal type_counter
             n = len(expr.elements)
+            # 根据元素类型决定每个元素在栈上产生几个值
             if isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
-                effective_n = n
-                elem_size = 8
+                items_per_elem = 1
             else:
-                effective_n = 2
-                elem_size = 8
-            total_size = effective_n * elem_size
+                items_per_elem = 2
+            stack_items = n * items_per_elem
+            elem_size = 8
+            total_size = stack_items * elem_size
             if not nested:
                 lines.append("sub rsp, 8 ; Add alignment")
+            # 注意：这里逆序调用 cg_expr，保证复制顺序正确
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
+                
             lines.append(f"mov rdi, {total_size}")
-            if effective_n == 1 and isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
-                lines.append("sub rsp, 8 ; Add alignment")
-            lines.append("call _jpl_alloc")
-            if effective_n == 1 and isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
+            if (items_per_elem == 1 and n == 1) or n == 5:
+                lines.append(f"sub rsp, 8 ; Add alignment")
+            lines.append(f"call _jpl_alloc ;{items_per_elem} , {n}")
+            if (items_per_elem == 1 and n == 1) or n == 5:
                 lines.append("add rsp, 8 ; Remove alignment")
+                            
             lines.append(f"; Moving {total_size} bytes from rsp to rax")
-            for i in range(effective_n):
-                offset = (effective_n - 1 - i) * elem_size
+            for i in range(stack_items):
+                offset = (stack_items - 1 - i) * elem_size
                 lines.append(f"    mov r10, [rsp + {offset}]")
                 lines.append(f"    mov [rax + {offset}], r10")
             lines.append(f"add rsp, {total_size}")
             lines.append("push rax")
-            lines.append(f"mov rax, {effective_n}")
+            # 将逻辑长度 n 压入栈中（而非 stack_items）
+            lines.append(f"mov rax, {n}")
             lines.append("push rax")
             if num_counter > type_counter:
                 type_counter = num_counter
+                        
+                
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")

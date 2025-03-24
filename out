@@ -1,4 +1,4 @@
-python3 compiler.py -s grader/hw10/ok/051.jpl
+python3 compiler.py -s grader/hw10/ok/015.jpl
 global jpl_main
 global _jpl_main
 extern _fail_assertion
@@ -25,17 +25,9 @@ extern _to_int
 extern _to_float
 
 section .data
-const0: dq 10
-const1: dq 9
-const2: dq 8
-const3: dq 7
-const4: dq 6
-const5: dq 5
-const6: dq 4
-const7: dq 3
-const8: dq 2
-const9: dq 1
-const10: db `(ArrayType (IntType) 1)`, 0
+  const0: dq 3.14159
+  const1: dq 2.71828
+  const2: db `(FloatType)`, 0
 
 section .text
 jpl_main:
@@ -44,58 +36,21 @@ _jpl_main:
     mov rbp, rsp
     push r12
     mov r12, rbp ; end of jpl_main prelude
-    sub rsp, 8 ; Add alignment
-    mov rax, [rel const0] ; 10
+    mov rax, [rel const0] ; 3.14159
     push rax
-    mov rax, [rel const1] ; 9
+    mov rax, [rel const1] ; 2.71828
     push rax
-    mov rax, [rel const2] ; 8
-    push rax
-    mov rax, [rel const3] ; 7
-    push rax
-    mov rax, [rel const4] ; 6
-    push rax
-    mov rax, [rel const5] ; 5
-    push rax
-    mov rax, [rel const6] ; 4
-    push rax
-    mov rax, [rel const7] ; 3
-    push rax
-    mov rax, [rel const8] ; 2
-    push rax
-    mov rax, [rel const9] ; 1
-    push rax
-    mov rdi, 80
-    call _jpl_alloc ;1 , 10
-    ; Moving 80 bytes from rsp to rax
-        mov r10, [rsp + 72]
-        mov [rax + 72], r10
-        mov r10, [rsp + 64]
-        mov [rax + 64], r10
-        mov r10, [rsp + 56]
-        mov [rax + 56], r10
-        mov r10, [rsp + 48]
-        mov [rax + 48], r10
-        mov r10, [rsp + 40]
-        mov [rax + 40], r10
-        mov r10, [rsp + 32]
-        mov [rax + 32], r10
-        mov r10, [rsp + 24]
-        mov [rax + 24], r10
-        mov r10, [rsp + 16]
-        mov [rax + 16], r10
-        mov r10, [rsp + 8]
-        mov [rax + 8], r10
-        mov r10, [rsp + 0]
-        mov [rax + 0], r10
-    add rsp, 80
-    push rax
-    mov rax, 10
-    push rax
-    lea rdi, [rel const10] ; '(ArrayType (IntType) 1)'
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    addsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    lea rdi, [rel const2] ; '(FloatType)'
     lea rsi, [rsp]
     call _show
-    add rsp, 16    ; Restore array literal result (16 bytes)
+    
     add rsp, 8     ; Restore alignment (8 bytes)
     pop r12 ; begin jpl_main postlude
     pop rbp

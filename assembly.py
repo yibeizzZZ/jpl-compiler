@@ -1,5 +1,5 @@
 from typing import List
-from parser import *
+from parser import lex, Parser, Cmd, ShowCmd, IntType, FloatType, BoolType
 from typechecker import typecheck_program
 
 def generate_asm_code(ast_cmds: List[Cmd]) -> str:
@@ -53,59 +53,26 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         type_const_table[type_str] = label
         data_lines.append(f'{label}: db `{type_str}`, 0')
         return label
-    
-    def push_with_padding(reg: str, size: int) -> List[str]:
-        alignment = 8
-        padded_size = ((size + alignment - 1) // alignment) * alignment
-        pad = padded_size - size
-        lines = []
-        if padded_size == 8:
-            lines.append(f"push {reg}  ; 实际 {size} 字节")
-        else:
-            lines.append(f"sub rsp, {padded_size}   ; 预留 {padded_size} 字节（含 {pad} 字节填充）")
-            lines.append(f"mov [rsp + {pad}], {reg}   ; 将 {reg} 存入偏移 {pad} 处")
-        return lines
 
-    def pop_with_padding(reg: str, size: int) -> List[str]:
-        alignment = 8
-        padded_size = ((size + alignment - 1) // alignment) * alignment
-        pad = padded_size - size
-        lines = []
-        if padded_size == 8:
-            lines.append(f"pop {reg}  ; 实际 {size} 字节")
-        else:
-            lines.append(f"mov {reg}, [rsp + {pad}]   ; 从偏移 {pad} 处加载数据")
-            lines.append(f"add rsp, {padded_size}   ; 恢复 {padded_size} 字节（包含 {pad} 字节填充）")
-        return lines
-
-    def get_size(type_node: TypeNode) -> int:
-        if isinstance(type_node, (IntType, FloatType, BoolType)):
-            return 8
-        elif isinstance(type_node, VoidType):
-            return 0
-        elif isinstance(type_node, (StructType, ArrayType)):
-            return 8
-        else:
-            raise Exception("Unsupported type for get_size")
-    
+    # 参数 nested 用于控制是否在内部递归中插入对齐指令（仅在最外层添加一次）
     def cg_expr(expr, nested: bool = False) -> List[str]:
         lines = []
         if expr.__class__.__name__ == "IntExpr":
             lab = get_const(expr.value, "int")
             lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
-            lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+            lines.append("push rax")
         elif expr.__class__.__name__ == "FloatExpr":
             lab = get_const(expr.value, "float")
             lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
-            lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+            lines.append("push rax")
         elif expr.__class__.__name__ == "TrueExpr":
             lab = get_const(1, "int")
             lines.append(f"mov rax, [rel {lab}] ; true")
-            lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+            lines.append("push rax")
         elif expr.__class__.__name__ == "FalseExpr":
             lab = get_const(0, "int")
             lines.append(f"mov rax, [rel {lab}] ; false")
-            lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+            lines.append("push rax")
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -118,14 +85,14 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("movsd [rsp], xmm0")
                 else:
                     lines.extend(cg_expr(expr.operand, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("neg rax")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
             elif expr.op.value == '!':
                 lines.extend(cg_expr(expr.operand, nested))
-                lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                lines.append("pop rax")
                 lines.append("xor rax, 1")
-                lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                lines.append("push rax")
             else:
                 lines.append("/* unhandled unary operator */")
         elif expr.__class__.__name__ == "BinopExpr":
@@ -150,7 +117,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cmpeqsd xmm0, xmm1")
                     lines.append("movq rax, xmm0")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '!=':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -161,7 +128,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cmpneqsd xmm0, xmm1")
                     lines.append("movq rax, xmm0")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '+':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -204,7 +171,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cmpltsd xmm0, xmm1")
                     lines.append("movq rax, xmm0")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '>':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -215,7 +182,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cmpltsd xmm1, xmm0")
                     lines.append("movq rax, xmm1")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '<=':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -226,7 +193,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cmplesd xmm0, xmm1")
                     lines.append("movq rax, xmm0")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '>=':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -237,7 +204,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cmplesd xmm1, xmm0")
                     lines.append("movq rax, xmm1")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 else:
                     lines.append("/* unhandled float binary operator */")
                 if expr.op.value in ('+', '-', '*', '/', '%'):
@@ -248,7 +215,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     nonlocal jump_counter
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp r10, 0")
                     label_div = f".jump{jump_counter}"
@@ -262,11 +229,11 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append(f"{label_div}:")
                     lines.append("cqo")
                     lines.append("idiv r10")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '%':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp r10, 0")
                     label_mod = f".jump{jump_counter}"
@@ -281,91 +248,92 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("cqo")
                     lines.append("idiv r10")
                     lines.append("mov rax, rdx")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '==':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
                     lines.append("sete al")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '!=':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
                     lines.append("setne al")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '+':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("add rax, r10")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '-':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("sub rax, r10")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '*':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("imul rax, r10")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '<':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
                     lines.append("setl al")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '>':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
                     lines.append("setg al")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '<=':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
                     lines.append("setle al")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 elif expr.op.value == '>=':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("pop r10")
                     lines.append("cmp rax, r10")
                     lines.append("setge al")
                     lines.append("and rax, 1")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                 else:
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
                     lines.append("pop r10")
-                    lines.extend(pop_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("pop rax")
                     lines.append("/* unhandled binary operator */")
-                    lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+                    lines.append("push rax")
                     
                     
+                        
         elif expr.__class__.__name__ == "ArrayLiteralExpr":
             n = len(expr.elements)
             if isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
@@ -375,36 +343,35 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             stack_items = n * items_per_elem
             elem_size = 8
             total_size = stack_items * elem_size
-
+            if not nested:
+                lines.append("sub rsp, 8 ; Add alignment")
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
-
-            padded = False
-            lines.append(f"mov rdi, {total_size}   ; total size to allocate")
-            if total_size % 16 == 8:    
-                lines.append("sub rsp, 8 ; Add alignment") 
-                padded = True
-            lines.append("call _jpl_alloc")
-            if padded:
-                lines.append("add rsp, 8 ; Remove alignment") 
-
-
+                
+            lines.append(f"mov rdi, {total_size}")
+            if (items_per_elem == 1 and n == 1) or (n > 1 and n %2 == 1 and items_per_elem == 1):
+                lines.append(f"sub rsp, 8 ; Add alignment")
+            lines.append(f"call _jpl_alloc ;{items_per_elem} , {n} , {n%2}")
+            if (items_per_elem == 1 and n == 1) or (n > 1 and n %2 == 1 and items_per_elem == 1):
+                lines.append("add rsp, 8 ; Remove alignment")
+                            
             lines.append(f"; Moving {total_size} bytes from rsp to rax")
             for i in range(stack_items):
                 offset = (stack_items - 1 - i) * elem_size
                 lines.append(f"    mov r10, [rsp + {offset}]")
                 lines.append(f"    mov [rax + {offset}], r10")
             lines.append(f"add rsp, {total_size}")
-            lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+            lines.append("push rax")
+            # 将逻辑长度 n 压入栈中（而非 stack_items）
             lines.append(f"mov rax, {n}")
-            lines.extend(push_with_padding("rax", get_size(IntType(start_idx=0))))
+            lines.append("push rax")
 
-
+                        
                 
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")
-            lines.extend(push_with_padding("rax", get_size(expr.resolved_type)))
+            lines.append("push rax")
         return lines
 
     show_cmds = [cmd for cmd in ast_cmds if isinstance(cmd, ShowCmd)]
@@ -422,10 +389,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     
     body_lines = []
     for cmd in show_cmds:
-
         lines = cg_expr(cmd.expr, nested=False)
         body_lines.extend(lines)
-        
 
         type_str = cmd.expr.resolved_type.to_s_expression()
         type_lab = get_type_const(type_str)
@@ -439,9 +404,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             f"lea rdi, [rel {type_lab}] ; '{type_str}'",
             "lea rsi, [rsp]",
             "call _show",
-            
             extra_restore,
-            "add rsp, 8     ; Remove alignment"
+            "add rsp, 8     ; Restore alignment (8 bytes)"
         ])
 
     
@@ -486,7 +450,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         text_section.append("    " + line)
     for line in body_lines:
         text_section.append("    " + line)
-    # 追加统一的结尾部分（若需要的话）
     text_section.append("    pop r12 ; begin jpl_main postlude")
     text_section.append("    pop rbp")
     text_section.append("    ret")

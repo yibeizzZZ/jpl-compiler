@@ -1,3 +1,4 @@
+python3 compiler.py -s grader/hw10/ok-fuzzer1/006.jpl
 global jpl_main
 global _jpl_main
 extern _fail_assertion
@@ -24,8 +25,65 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 1
-  const1: db `(ArrayType (BoolType) 1)`, 0
+  const0: dq 67
+  const1: dq 655
+  const2: dq 588
+  const3: dq 612
+  const4: dq 28
+  const5: db `divide by zero`, 0
+  const6: db `mod by zero`, 0
+  const7: dq 454
+  const8: db `(IntType)`, 0
+  const9: dq 81.59
+  const10: dq 67.04
+  const11: dq 53.6
+  const12: dq 86.66
+  const13: dq 9.46
+  const14: dq 5.69
+  const15: db `(BoolType)`, 0
+  const16: dq 1
+  const17: dq 31.57
+  const18: dq 50.22
+  const19: dq 64.29
+  const20: dq 73.87
+  const21: dq 4.12
+  const22: dq 96.06
+  const23: dq 27.62
+  const24: dq 620
+  const25: dq 869
+  const26: dq 329
+  const27: dq 798
+  const28: dq 581
+  const29: dq 543
+  const30: dq 729
+  const31: db `(ArrayType (BoolType) 1)`, 0
+  const32: dq 835
+  const33: dq 599
+  const34: dq 757
+  const35: dq 3.81
+  const36: dq 75.49
+  const37: dq 87.26
+  const38: dq 58.83
+  const39: dq 78.09
+  const40: dq 12.17
+  const41: dq 97.39
+  const42: dq 27.6
+  const43: dq 37.29
+  const44: db `(FloatType)`, 0
+  const45: dq 36.51
+  const46: dq 97.5
+  const47: dq 71.63
+  const48: dq 35
+  const49: dq 59
+  const50: dq 747
+  const51: dq 923
+  const52: dq 0
+  const53: dq 96.31
+  const54: dq 85.38
+  const55: dq 72.2
+  const56: dq 97.55
+  const57: dq 43.91
+  const58: dq 62.61
 
 section .text
 jpl_main:
@@ -34,24 +92,607 @@ _jpl_main:
     mov rbp, rsp
     push r12
     mov r12, rbp ; end of jpl_main prelude
-    mov rax, [rel const0] ; true
-    push rax  ; 实际 8 字节
-    mov rdi, 8   ; total size to allocate
+    mov rax, [rel const0] ; 67
+    push rax
+    pop rax
+    neg rax
+    push rax
+    mov rax, [rel const1] ; 655
+    push rax
+    pop rax
+    neg rax
+    push rax
+    pop rax
+    pop r10
+    add rax, r10
+    push rax
+    pop rax
+    neg rax
+    push rax
+    mov rax, [rel const2] ; 588
+    push rax
+    mov rax, [rel const3] ; 612
+    push rax
+    mov rax, [rel const4] ; 28
+    push rax
+    pop rax
+    pop r10
+    cmp r10, 0
+    jne .jump1
+    sub rsp, 8 ; Add alignment mod
+    lea rdi, [rel const5] ; 'divide by zero'
+    call _fail_assertion
+    add rsp, 8
+    .jump1:
+    cqo
+    idiv r10
+    push rax
+    pop rax
+    pop r10
+    cmp r10, 0
+    jne .jump2
+    sub rsp, 8 ; Add alignment mod
+    lea rdi, [rel const6] ; 'mod by zero'
+    call _fail_assertion
+    add rsp, 8 ; Remove alignment
+    .jump2:
+    cqo
+    idiv r10
+    mov rax, rdx
+    push rax
+    pop rax
+    pop r10
+    add rax, r10
+    push rax
+    mov rax, [rel const7] ; 454
+    push rax
+    pop rax
+    neg rax
+    push rax
+    pop rax
+    pop r10
+    cmp r10, 0
+    jne .jump3
+    sub rsp, 8 ; Add alignment mod
+    lea rdi, [rel const6] ; 'mod by zero'
+    call _fail_assertion
+    add rsp, 8 ; Remove alignment
+    .jump3:
+    cqo
+    idiv r10
+    mov rax, rdx
+    push rax
+    lea rdi, [rel const8] ; '(IntType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
     sub rsp, 8 ; Add alignment
-    call _jpl_alloc
+    mov rax, [rel const9] ; 81.59
+    push rax
+    mov rax, [rel const10] ; 67.04
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    divsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const11] ; 53.6
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    call _fmod
+    add rsp, 8 ; Remove alignment
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const12] ; 86.66
+    push rax
+    mov rax, [rel const13] ; 9.46
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    mulsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const14] ; 5.69
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    cmplesd xmm1, xmm0
+    movq rax, xmm1
+    and rax, 1
+    push rax
+    lea rdi, [rel const15] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const16] ; true
+    push rax
+    lea rdi, [rel const15] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const17] ; 31.57
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const18] ; 50.22
+    push rax
+    sub rsp, 8 ; Add alignment
+    mov rax, [rel const19] ; 64.29
+    push rax
+    mov rax, [rel const20] ; 73.87
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    call _fmod
+    add rsp, 8 ; Remove alignment
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    mulsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const21] ; 4.12
+    push rax
+    mov rax, [rel const22] ; 96.06
+    push rax
+    mov rax, [rel const23] ; 27.62
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    addsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    addsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    divsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    cmpneqsd xmm0, xmm1
+    movq rax, xmm0
+    and rax, 1
+    push rax
+    lea rdi, [rel const15] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    sub rsp, 8 ; Add alignment
+    mov rax, [rel const24] ; 620
+    push rax
+    mov rax, [rel const25] ; 869
+    push rax
+    mov rax, [rel const26] ; 329
+    push rax
+    pop rax
+    pop r10
+    sub rax, r10
+    push rax
+    mov rax, [rel const27] ; 798
+    push rax
+    mov rax, [rel const28] ; 581
+    push rax
+    pop rax
+    pop r10
+    imul rax, r10
+    push rax
+    pop rax
+    pop r10
+    add rax, r10
+    push rax
+    mov rax, [rel const29] ; 543
+    push rax
+    mov rax, [rel const30] ; 729
+    push rax
+    pop rax
+    pop r10
+    cmp r10, 0
+    jne .jump4
+    sub rsp, 8 ; Add alignment mod
+    lea rdi, [rel const5] ; 'divide by zero'
+    call _fail_assertion
+    add rsp, 8
+    .jump4:
+    cqo
+    idiv r10
+    push rax
+    pop rax
+    neg rax
+    push rax
+    pop rax
+    pop r10
+    add rax, r10
+    push rax
+    pop rax
+    pop r10
+    cmp rax, r10
+    setne al
+    and rax, 1
+    push rax
+    mov rdi, 8
+    sub rsp, 8 ; Add alignment
+    call _jpl_alloc ;1 , 1 , 1
     add rsp, 8 ; Remove alignment
     ; Moving 8 bytes from rsp to rax
         mov r10, [rsp + 0]
         mov [rax + 0], r10
     add rsp, 8
-    push rax  ; 实际 8 字节
+    push rax
     mov rax, 1
-    push rax  ; 实际 8 字节
-    lea rdi, [rel const1] ; '(ArrayType (BoolType) 1)'
+    push rax
+    lea rdi, [rel const31] ; '(ArrayType (BoolType) 1)'
     lea rsi, [rsp]
     call _show
     add rsp, 16    ; Restore array literal result (16 bytes)
-    add rsp, 8     ; Remove alignment
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const32] ; 835
+    push rax
+    mov rax, [rel const33] ; 599
+    push rax
+    mov rax, [rel const34] ; 757
+    push rax
+    pop rax
+    pop r10
+    sub rax, r10
+    push rax
+    pop rax
+    neg rax
+    push rax
+    pop rax
+    pop r10
+    sub rax, r10
+    push rax
+    pop rax
+    neg rax
+    push rax
+    lea rdi, [rel const8] ; '(IntType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    sub rsp, 8 ; Add alignment
+    mov rax, [rel const35] ; 3.81
+    push rax
+    mov rax, [rel const36] ; 75.49
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    call _fmod
+    add rsp, 8 ; Remove alignment
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const37] ; 87.26
+    push rax
+    mov rax, [rel const38] ; 58.83
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    divsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    divsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const39] ; 78.09
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    addsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const40] ; 12.17
+    push rax
+    sub rsp, 8 ; Add alignment
+    mov rax, [rel const41] ; 97.39
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const42] ; 27.6
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    call _fmod
+    add rsp, 8 ; Remove alignment
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    addsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    cmpeqsd xmm0, xmm1
+    movq rax, xmm0
+    and rax, 1
+    push rax
+    lea rdi, [rel const15] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const43] ; 37.29
+    push rax
+    lea rdi, [rel const44] ; '(FloatType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    sub rsp, 8 ; Add alignment
+    mov rax, [rel const45] ; 36.51
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const46] ; 97.5
+    push rax
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    call _fmod
+    add rsp, 8 ; Remove alignment
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const47] ; 71.63
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    cmpneqsd xmm0, xmm1
+    movq rax, xmm0
+    and rax, 1
+    push rax
+    pop rax
+    xor rax, 1
+    push rax
+    lea rdi, [rel const15] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const48] ; 35
+    push rax
+    mov rax, [rel const49] ; 59
+    push rax
+    mov rax, [rel const50] ; 747
+    push rax
+    mov rax, [rel const51] ; 923
+    push rax
+    pop rax
+    pop r10
+    imul rax, r10
+    push rax
+    pop rax
+    pop r10
+    cmp r10, 0
+    jne .jump5
+    sub rsp, 8 ; Add alignment mod
+    lea rdi, [rel const5] ; 'divide by zero'
+    call _fail_assertion
+    add rsp, 8
+    .jump5:
+    cqo
+    idiv r10
+    push rax
+    pop rax
+    pop r10
+    sub rax, r10
+    push rax
+    pop rax
+    neg rax
+    push rax
+    pop rax
+    neg rax
+    push rax
+    lea rdi, [rel const8] ; '(IntType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const52] ; false
+    push rax
+    lea rdi, [rel const15] ; '(BoolType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
+    mov rax, [rel const53] ; 96.31
+    push rax
+    mov rax, [rel const54] ; 85.38
+    push rax
+    mov rax, [rel const55] ; 72.2
+    push rax
+    mov rax, [rel const56] ; 97.55
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    mulsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    divsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const57] ; 43.91
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    mov rax, [rel const58] ; 62.61
+    push rax
+    movsd xmm1, [rsp]
+    add rsp, 8
+    pxor xmm0, xmm0
+    subsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    addsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    mulsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    movsd xmm0, [rsp]
+    add rsp, 8
+    movsd xmm1, [rsp]
+    add rsp, 8
+    divsd xmm0, xmm1
+    sub rsp, 8
+    movsd [rsp], xmm0
+    lea rdi, [rel const44] ; '(FloatType)'
+    lea rsi, [rsp]
+    call _show
+    
+    add rsp, 8     ; Restore alignment (8 bytes)
     pop r12 ; begin jpl_main postlude
     pop rbp
     ret

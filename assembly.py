@@ -8,7 +8,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     type_const_table = {}
     data_lines = []   
     prologue_lines = []
-    expr_lines = []
     epilogue_lines = []
     fail_const = None
     fail_const_mod = None
@@ -337,7 +336,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                         
         elif expr.__class__.__name__ == "ArrayLiteralExpr":
             n = len(expr.elements)
-            # 根据元素类型决定每个元素在栈上产生几个值
             if isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
                 items_per_elem = 1
             else:
@@ -347,7 +345,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             total_size = stack_items * elem_size
             if not nested:
                 lines.append("sub rsp, 8 ; Add alignment")
-            # 注意：这里逆序调用 cg_expr，保证复制顺序正确
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
                 
@@ -388,26 +385,21 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         "mov r12, rbp ; end of jpl_main prelude"
     ]
     
-    expr_lines = []
     epilogue_lines = []
     
     body_lines = []
     for cmd in show_cmds:
-        # 生成当前 show 命令表达式的代码
         lines = cg_expr(cmd.expr, nested=False)
         body_lines.extend(lines)
-        
-        # 根据表达式类型生成相应的类型常量标签
+
         type_str = cmd.expr.resolved_type.to_s_expression()
         type_lab = get_type_const(type_str)
-        
-        # 若表达式为数组字面量，可能需要额外恢复对齐指令
+
         if cmd.expr.__class__.__name__ == "ArrayLiteralExpr":
             extra_restore = "add rsp, 16    ; Restore array literal result (16 bytes)"
         else:
             extra_restore = ""
         
-        # 生成 _show 调用的代码，并将其直接追加到 body_lines 中
         body_lines.extend([
             f"lea rdi, [rel {type_lab}] ; '{type_str}'",
             "lea rsi, [rsp]",
@@ -458,7 +450,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         text_section.append("    " + line)
     for line in body_lines:
         text_section.append("    " + line)
-    # 追加统一的结尾部分（若需要的话）
     text_section.append("    pop r12 ; begin jpl_main postlude")
     text_section.append("    pop rbp")
     text_section.append("    ret")

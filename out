@@ -1,100 +1,133 @@
-python3 compiler.py -s grader/hw11/ok1/028.jpl
-global jpl_main
-global _jpl_main
-extern _fail_assertion
-extern _jpl_alloc
-extern _get_time
-extern _show
-extern _print
-extern _print_time
-extern _read_image
-extern _write_image
-extern _fmod
-extern _sqrt
-extern _exp
-extern _sin
-extern _cos
-extern _tan
-extern _asin
-extern _acos
-extern _atan
-extern _log
-extern _pow
-extern _atan2
-extern _to_int
-extern _to_float
+make -C ./grader DIR=/root/CS4470HWs PART=1 test-hw11
+make[1]: Entering directory '/root/CS4470HWs/grader'
+Homework 11 part 1 ..............................W
+031.jpl: 8 lines differ
+======= Standard Out: =======
+*** 031.jpl.expected
+--- Your compiler
+***************
+*** 60,74 ****
+  push rax
+  mov rax, 4
+  push rax
+  sub rsp, 16
+  mov r10, [rbp - 24]
+- mov [rsp + 8], r10
+- mov r10, [rbp - 32]
+  mov [rsp], r10
+  lea rdi, [rel const1]
+  lea rsi, [rsp]
+  call _show
+  add rsp, 16
+  add rsp, 24
+  pop r12
+  pop rbp
+--- 60,78 ----
+  push rax
+  mov rax, 4
+  push rax
++ sub rsp, 8
++ sub rsp, 8
+  sub rsp, 16
++ mov r10, [rbp - 16]
++ mov [rsp + 8], r10
+  mov r10, [rbp - 24]
+  mov [rsp], r10
+  lea rdi, [rel const1]
+  lea rsi, [rsp]
+  call _show
+  add rsp, 16
++ add rsp, 8
++ add rsp, 8
+  add rsp, 24
+  pop r12
+  pop rbp
 
-section .data
-  const0: dq 2.0
-  const1: dq 1.0
-  const2: db `(ArrayType (FloatType) 1)`, 0
+=======================
+W
+032.jpl: 4 lines differ
+======= Standard Out: =======
+*** 032.jpl.expected
+--- Your compiler
+***************
+*** 99,107 ****
+  push rax
+  sub rsp, 8
+  sub rsp, 16
+! mov r10, [rbp - 32]
+  mov [rsp + 8], r10
+! mov r10, [rbp - 40]
+  mov [rsp], r10
+  lea rdi, [rel const5]
+  lea rsi, [rsp]
+--- 99,107 ----
+  push rax
+  sub rsp, 8
+  sub rsp, 16
+! mov r10, [rbp - 16]
+  mov [rsp + 8], r10
+! mov r10, [rbp - 24]
+  mov [rsp], r10
+  lea rdi, [rel const5]
+  lea rsi, [rsp]
 
-section .text
-jpl_main:
-_jpl_main:
-    push rbp; new offset: 8
-    mov rbp, rsp
-    push r12; new offset: 16
-    mov r12, rbp ; end of jpl_main prelude
-    mov rax, [rel const0] ; 2.0
-    push rax ;  actually 8 bytes, new offset: 24
-    mov rax, [rel const1] ; 1.0
-    push rax ;  actually 8 bytes, new offset: 32
-    mov rdi, 16   ; total size to allocate
-    sub rsp, 8 ; align stack by 8, new offset 40
-    call _jpl_alloc ;
-    add rsp, 8 ; remove padding of 8, new offset 32
-    ; Moving 16 bytes from rsp to rax
-        mov r10, [rsp + 8]
-        mov [rax + 8], r10
-        mov r10, [rsp + 0]
-        mov [rax + 0], r10
-    add rsp, 16 ;  ,new offset 16
-    push rax ;  actually 8 bytes, new offset: 24
-    mov rax, 2
-    push rax ;  actually 8 bytes, new offset: 32
-    ;End LetCmd Line
-    ;This Is From VarExpr-------
-    sub rsp, 8 ; Add alignment ,new offset 40
-        mov r10, [rbp - 16]
-        mov [rsp], r10
-    ;This Is From VarExpr-------
-    sub rsp, 8 ; Add alignment ,new offset 48
-        mov r10, [rbp - 16]
-        mov [rsp], r10
-    mov rdi, 32   ; total size to allocate
-    sub rsp, 8 ; align stack by 8, new offset 56
-    call _jpl_alloc ;
-    add rsp, 8 ; remove padding of 8, new offset 48
-    ; Moving 32 bytes from rsp to rax
-        mov r10, [rsp + 24]
-        mov [rax + 24], r10
-        mov r10, [rsp + 16]
-        mov [rax + 16], r10
-        mov r10, [rsp + 8]
-        mov [rax + 8], r10
-        mov r10, [rsp + 0]
-        mov [rax + 0], r10
-    add rsp, 32 ;  ,new offset 16
-    push rax ;  actually 8 bytes, new offset: 24
-    mov rax, 2
-    push rax ;  actually 8 bytes, new offset: 32
-    ;End LetCmd Line
-    ; [ShowCmd] array-var path
-    sub rsp, 8 ; Add alignment ,new offset 40
-    sub rsp, 16 ; Add alignment ,new offset 56
-    ; Moving 16 bytes from rbp - 24 to rsp
-         mov r10, [rbp - 24 + 8]
-         mov [rsp + 8], r10
-         mov r10, [rbp - 24 + 0]
-         mov [rsp + 0], r10
-    lea rdi, [rel const2]
-    lea rsi, [rsp]
-    call _show
-    add rsp, 8 ; Restore result (8 bytes)  ,new offset 48
-    add rsp, 16 ; Local variables ,new offset 32
-    pop r12 ; rax, actually 8 bytes, new offset: 24
-    pop rbp ; rax, actually 8 bytes, new offset: 16
-    ret
- 
-Compilation succeeded
+=======================
+W
+033.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:15: run] Error 1
+
+
+=======================
+W
+034.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:15: run] Error 1
+
+
+=======================
+W
+035.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:15: run] Error 1
+
+
+=======================
+W
+036.jpl: File should have been accepted
+======= Standard Error: =======
+make[2]: *** [Makefile:15: run] Error 1
+
+
+=======================
+W
+037.jpl: 4 lines differ
+======= Standard Out: =======
+*** 037.jpl.expected
+--- Your compiler
+***************
+*** 112,120 ****
+  push rax
+  sub rsp, 8
+  sub rsp, 16
+! mov r10, [rbp - 80]
+  mov [rsp + 8], r10
+! mov r10, [rbp - 88]
+  mov [rsp], r10
+  lea rdi, [rel const1]
+  lea rsi, [rsp]
+--- 112,120 ----
+  push rax
+  sub rsp, 8
+  sub rsp, 16
+! mov r10, [rbp - 16]
+  mov [rsp + 8], r10
+! mov r10, [rbp - 24]
+  mov [rsp], r10
+  lea rdi, [rel const1]
+  lea rsi, [rsp]
+
+=======================
+
+Passed 30/37 = 81.1% tests
+make[1]: Leaving directory '/root/CS4470HWs/grader'

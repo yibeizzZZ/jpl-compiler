@@ -105,11 +105,21 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
             offset = var_offsets[expr.name]
-            lines.append(";This Is From VarExpr-------")
-            # lines.extend(stack.align_current())
-            lines.extend(sub_rsp(8))
-            lines.append(f"    mov r10, [rbp - {offset}]")
-            lines.append("    mov [rsp], r10")
+            # Check if this variable is a literal array:
+            if literal_flags.get(expr.name, False):
+                # Generate the alternative block for literal arrays:
+                new_offset = offset + 8  # for example, extra 8 bytes allocated
+                lines.append("; This is from VarExpr (literal array) -------")
+                lines.extend(sub_rsp(16))  # instead of two sub_rsp(8)
+                lines.append(f"    mov r10, [rbp - {new_offset} + 8]")
+                lines.append(f"    mov [rsp + 8], r10")
+                lines.append(f"    mov r10, [rbp - {new_offset} + 0]")
+                lines.append("    mov [rsp + 0], r10")
+            else:
+                lines.append("; This is from VarExpr -------")
+                lines.extend(sub_rsp(8))
+                lines.append(f"    mov r10, [rbp - {offset}]")
+                lines.append("    mov [rsp], r10")
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -450,7 +460,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.append("     mov [rsp + 8], r10")
                 body_lines.append("     mov r10, [rbp - 24 + 0]")
                 body_lines.append("     mov [rsp + 0], r10")
-                
             else:
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
                 

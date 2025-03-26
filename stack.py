@@ -25,6 +25,18 @@ class Stack:
             self.offset -= padding
         return instructions
 
+    def align_current(self) -> List[str]:
+
+        alignment_instructions = []
+        leftover = (16 - (self.offset % 16)) % 16
+        self.padding_stack.append(leftover)
+        if leftover > 0:
+            alignment_instructions.append(
+                f"sub rsp, {leftover} ; align *current* stack by {leftover}, new offset {self.offset + leftover}"
+            )
+            self.offset += leftover
+        return alignment_instructions
+    
     def push(self, value: str, size: int, description: str = "") -> List[str]:
         alignment = 8
         padded_size = ((size + alignment - 1) // alignment) * alignment

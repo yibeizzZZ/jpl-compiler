@@ -105,7 +105,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "VarExpr":
             offset = var_offsets[expr.name]
             lines.append(";This Is From VarExpr-------")
-            lines.extend(stack.align(8))
+            # lines.extend(stack.align_current())
             lines.extend(sub_rsp(8))
             lines.append(f"    mov r10, [rbp - {offset}]")
             lines.append("    mov [rsp], r10")
@@ -424,16 +424,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             body_lines.append(";End LetCmd Line")
             
         elif isinstance(cmd, ShowCmd):
-            if isinstance(cmd.expr, VarExpr):
-                offset = var_offsets[cmd.expr.name]
-                body_lines.extend(sub_rsp(8))    # Add alignment
-                body_lines.extend(sub_rsp(8))    # Allocate space
-                body_lines.append(f"    mov r10, [rbp - {offset}]")
-                body_lines.append("    mov [rsp], r10")
-
-            else:
-                body_lines.extend(cg_expr(cmd.expr, nested=False))
-
+            body_lines.extend(stack.align_current())
+            body_lines.extend(cg_expr(cmd.expr, nested=False))
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
             body_lines += [
                 f"lea rdi, [rel {type_lab}]",
@@ -442,12 +434,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             ]
             if isinstance(cmd.expr, ArrayLiteralExpr):
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
-            body_lines.extend(add_rsp(8, "Restore result (8 bytes)"))
-            
+            body_lines.extend(add_rsp(8, "Restore result (8 bytes) "))
+    
     total_local = next_local_offset - 16
     if total_local > 0:
-        epilogue_lines.append("add rsp, 8 ; Restore alignment")
-        epilogue_lines.append(f"add rsp, {total_local} ; Local variables")
+        epilogue_lines.extend(stack.unalign())
+        epilogue_lines.extend(add_rsp(total_local ,"Local variables"))
     epilogue_lines.extend(stack.pop("r12", 8))
     epilogue_lines.extend(stack.pop("rbp", 8))
     epilogue_lines.append("ret")

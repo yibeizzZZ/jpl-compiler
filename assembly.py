@@ -427,30 +427,20 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     for cmd in ast_cmds:
         if isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value, nested=False)
-            if var_used_later(cmd.lvalue.name):
-                lines.extend(sub_rsp(8, "Add alignment"))
-                lines.extend(sub_rsp(8, ""))  # allocate local
-                lines.append("; Moving 8 bytes from rbp - {} to rsp".format(next_local_offset))
-                lines.append(f"    mov r10, [rbp - {next_local_offset}]")
-                lines.append("    mov [rsp], r10")
-                var_offsets[cmd.lvalue.name] = next_local_offset
-                next_local_offset += 8
+            var_offsets[cmd.lvalue.name] = next_local_offset   # ← **一定先记录**
+            next_local_offset += 8
             body_lines.extend(lines)
-        
+            
         elif isinstance(cmd, ShowCmd):
-            if isinstance(cmd.expr, BinopExpr) \
-            and cmd.expr.op == Binop.EQ \
-            and isinstance(cmd.expr.left, VarExpr) \
-            and isinstance(cmd.expr.right, VarExpr) \
-            and cmd.expr.left.name == cmd.expr.right.name:
-                offset = var_offsets[cmd.expr.left.name]
-                body_lines.append("cmp rax, r10")
-                body_lines.append("sete al")
-                body_lines.append("and rax, 1")
-                body_lines.append("push rax")
+            if isinstance(cmd.expr, VarExpr):
+                offset = var_offsets[cmd.expr.name]
+                body_lines.extend(sub_rsp(8))    # Add alignment
+                body_lines.extend(sub_rsp(8))    # Allocate space
+                body_lines.append(f"    mov r10, [rbp - {offset}]")
+                body_lines.append("    mov [rsp], r10")
             else:
-                if not isinstance(cmd.expr, VarExpr):
-                    body_lines.extend(cg_expr(cmd.expr, nested=False))
+                # 直接生成常量／表达式，不调整对齐
+                body_lines.extend(cg_expr(cmd.expr, nested=False))
 
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
             body_lines += [

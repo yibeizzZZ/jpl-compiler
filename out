@@ -1,4 +1,4 @@
-python3 compiler.py -s grader/hw11/ok1/007.jpl
+python3 compiler.py -s grader/hw11/ok1/001.jpl
 global jpl_main
 global _jpl_main
 extern _fail_assertion
@@ -25,9 +25,8 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 1
-  const1: dq 2
-  const2: db `(BoolType)`, 0
+  const0: dq 3
+  const1: db `(IntType)`, 0
 
 section .text
 jpl_main:
@@ -36,28 +35,20 @@ _jpl_main:
     mov rbp, rsp
     push r12; new offset: 16
     mov r12, rbp ; end of jpl_main prelude
-    mov rax, [rel const0] ; true
-    push rax ; , actually 8 bytes, new offset: 24
+    mov rax, [rel const0] ; 3
+    push rax ;  actually 8 bytes, new offset: 24
     sub rsp, 8 ; Add alignment ,new offset 32
-    sub rsp, 8 ;  ,new offset 40
-    ; Moving 8 bytes from rbp - 16 to rsp
+    sub rsp, 8 ; Add alignment ,new offset 40
         mov r10, [rbp - 16]
         mov [rsp], r10
-    mov rax, [rel const1] ; 2
-    push rax ; , actually 8 bytes, new offset: 48
-    mov rax, [rbp - 16]
-    push rax ; , actually 8 bytes, new offset: 56
-    pop rax ; rax, actually 8 bytes, new offset: 48
-    xor rax, 1
-    push rax ; , actually 8 bytes, new offset: 56
-    lea rdi, [rel const2]
+    lea rdi, [rel const1]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; Restore result (8 bytes) ,new offset 48
+    add rsp, 8 ; Restore result (8 bytes) ,new offset 32
     add rsp, 8 ; Restore alignment
     add rsp, 8 ; Local variables
-    pop r12 ; rax, actually 8 bytes, new offset: 40
-    pop rbp ; rax, actually 8 bytes, new offset: 32
+    pop r12 ; rax, actually 8 bytes, new offset: 24
+    pop rbp ; r12, actually 8 bytes, new offset: 16
     ret
  
 Compilation succeeded

@@ -32,7 +32,7 @@ class Stack:
         new_offset = self.offset + padded_size
         instructions = []
         if padded_size == 8:
-            instructions.append(f"push {value} ; {description}, actually {size} bytes, new offset: {new_offset}")
+            instructions.append(f"push {value} ; {description} actually {size} bytes, new offset: {new_offset}")
         else:
             instructions.append(f"sub rsp, {padded_size} ; reserve {padded_size} bytes (with {pad} bytes padding), new offset: {new_offset}")
             instructions.append(f"mov [rsp + {pad}], {value} ; store {value} at offset {pad}")

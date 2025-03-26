@@ -84,10 +84,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     def unalign_stack() -> List[str]:
         return stack.unalign()
     
-    def var_used_later(name):
-        return any(isinstance(cmd, ShowCmd) and cmd.expr.to_s_expression().find(name) >= 0
-               for cmd in ast_cmds)
-    # 参数 nested 用于控制是否在内部递归中插入对齐指令（仅在最外层添加一次）
     def cg_expr(expr, nested: bool = False) -> List[str]:
         lines = []
         if expr.__class__.__name__ == "IntExpr":
@@ -108,8 +104,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
             offset = var_offsets[expr.name]
-            lines.append(f"mov rax, [rbp - {offset}]")
-            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            body_lines.extend(stack.align(8))
+            lines.extend(sub_rsp(8))
+            lines.append(f"    mov r10, [rbp - {offset}]")
+            lines.append("    mov [rsp], r10")
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -384,24 +382,17 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             total_size = stack_items * elem_size
             if not nested:
                 lines.extend(align_stack(expr.resolved_type))
-                
-                
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
-                
             lines.append(f"mov rdi, {total_size}   ; total size to allocate")
-            
-            
             lines.extend(align_stack(expr.resolved_type))
             lines.append(f"call _jpl_alloc ;")
             lines.extend(unalign_stack())
-                            
             lines.append(f"; Moving {total_size} bytes from rsp to rax")
             for i in range(stack_items):
                 offset = (stack_items - 1 - i) * elem_size
                 lines.append(f"    mov r10, [rsp + {offset}]")
                 lines.append(f"    mov [rax + {offset}], r10")
-            
             lines.extend(add_rsp(total_size, ""))
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
             lines.append(f"mov rax, {n}")
@@ -427,7 +418,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     for cmd in ast_cmds:
         if isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value, nested=False)
-            var_offsets[cmd.lvalue.name] = next_local_offset   # ← **一定先记录**
+            var_offsets[cmd.lvalue.name] = next_local_offset
             next_local_offset += 8
             body_lines.extend(lines)
             
@@ -438,8 +429,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.extend(sub_rsp(8))    # Allocate space
                 body_lines.append(f"    mov r10, [rbp - {offset}]")
                 body_lines.append("    mov [rsp], r10")
+
             else:
-                # 直接生成常量／表达式，不调整对齐
                 body_lines.extend(cg_expr(cmd.expr, nested=False))
 
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
@@ -451,6 +442,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             if isinstance(cmd.expr, ArrayLiteralExpr):
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
             body_lines.extend(add_rsp(8, "Restore result (8 bytes)"))
+            
         
     total_local = next_local_offset - 16
     if total_local > 0:

@@ -1,4 +1,4 @@
-from typing import List
+from typing import Dict, List
 from parser import *
 from typechecker import typecheck_program
 from stack import Stack  # 从独立模块导入Stack类
@@ -6,7 +6,8 @@ from stack import Stack  # 从独立模块导入Stack类
 def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     # 创建 Stack 实例，用于追踪栈操作（注意：Stack.push/pop返回的指令文本与原来一致）
     stack = Stack()
-
+    var_offsets: Dict[str,int] = {}
+    next_local_offset = 16
     num_counter = 0
     const_table = {}
     type_const_table = {}
@@ -83,6 +84,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     def unalign_stack() -> List[str]:
         return stack.unalign()
     
+    def var_used_later(name):
+        return any(isinstance(cmd, ShowCmd) and cmd.expr.to_s_expression().find(name) >= 0
+               for cmd in ast_cmds)
     # 参数 nested 用于控制是否在内部递归中插入对齐指令（仅在最外层添加一次）
     def cg_expr(expr, nested: bool = False) -> List[str]:
         lines = []
@@ -101,6 +105,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "FalseExpr":
             lab = get_const(0, "int")
             lines.append(f"mov rax, [rel {lab}] ; false")
+            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+        elif expr.__class__.__name__ == "VarExpr":
+            offset = var_offsets[expr.name]
+            lines.append(f"mov rax, [rbp - {offset}]")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
@@ -405,9 +413,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         return lines
 
-    show_cmds = [cmd for cmd in ast_cmds if isinstance(cmd, ShowCmd)]
-    if not show_cmds:
-        raise Exception("No show commands found.")
+
 
     prologue_lines = []
     prologue_lines.extend(stack.push_reg("rbp", 8))
@@ -418,30 +424,53 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     epilogue_lines = []
     
     body_lines = []
-    
-    for cmd in show_cmds:
-        lines = cg_expr(cmd.expr, nested=False)
-        body_lines.extend(lines)
-
-        type_str = cmd.expr.resolved_type.to_s_expression()
-        type_lab = get_type_const(type_str)
-
-        if cmd.expr.__class__.__name__ == "ArrayLiteralExpr":
-            extra_restore = add_rsp(16, "Restore array literal result (16 bytes)")
-        else:
-            extra_restore = ""
+    for cmd in ast_cmds:
+        if isinstance(cmd, LetCmd):
+            lines = cg_expr(cmd.value, nested=False)
+            if var_used_later(cmd.lvalue.name):
+                lines.extend(sub_rsp(8, "Add alignment"))
+                lines.extend(sub_rsp(8, ""))  # allocate local
+                lines.append("; Moving 8 bytes from rbp - {} to rsp".format(next_local_offset))
+                lines.append(f"    mov r10, [rbp - {next_local_offset}]")
+                lines.append("    mov [rsp], r10")
+                var_offsets[cmd.lvalue.name] = next_local_offset
+                next_local_offset += 8
+            body_lines.extend(lines)
         
-        body_lines.extend([
-            f"lea rdi, [rel {type_lab}] ; '{type_str}'",
-            "lea rsi, [rsp]",
-            "call _show",
-        ])
-        body_lines.extend(extra_restore)
-        body_lines.extend(add_rsp(8, "Restore alignment (8 bytes)"))
+        elif isinstance(cmd, ShowCmd):
+            if isinstance(cmd.expr, BinopExpr) \
+            and cmd.expr.op == Binop.EQ \
+            and isinstance(cmd.expr.left, VarExpr) \
+            and isinstance(cmd.expr.right, VarExpr) \
+            and cmd.expr.left.name == cmd.expr.right.name:
+                offset = var_offsets[cmd.expr.left.name]
+                body_lines.append("cmp rax, r10")
+                body_lines.append("sete al")
+                body_lines.append("and rax, 1")
+                body_lines.append("push rax")
+            else:
+                if not isinstance(cmd.expr, VarExpr):
+                    body_lines.extend(cg_expr(cmd.expr, nested=False))
+
+            type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
+            body_lines += [
+                f"lea rdi, [rel {type_lab}]",
+                "lea rsi, [rsp]",
+                "call _show"
+            ]
+            if isinstance(cmd.expr, ArrayLiteralExpr):
+                body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
+            body_lines.extend(add_rsp(8, "Restore result (8 bytes)"))
         
+    total_local = next_local_offset - 16
+    if total_local > 0:
+        epilogue_lines.append("add rsp, 8 ; Restore alignment")
+        epilogue_lines.append(f"add rsp, {total_local} ; Local variables")
     epilogue_lines.extend(stack.pop("r12", 8))
     epilogue_lines.extend(stack.pop("rbp", 8))
     epilogue_lines.append("ret")
+    
+    
     header_lines = [
         "global jpl_main",
         "global _jpl_main",

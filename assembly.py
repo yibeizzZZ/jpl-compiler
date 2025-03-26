@@ -104,7 +104,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
             offset = var_offsets[expr.name]
-            body_lines.extend(stack.align(8))
+            lines.append(";This Is From VarExpr-------")
+            lines.extend(stack.align(8))
             lines.extend(sub_rsp(8))
             lines.append(f"    mov r10, [rbp - {offset}]")
             lines.append("    mov [rsp], r10")
@@ -244,7 +245,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 else:
                     lines.append("/* unhandled float binary operator */")
                 if expr.op.value in ('+', '-', '*', '/', '%'):
-                    # lines.extend(align_stack(expr.resolved_type))
                     lines.extend(sub_rsp(8, ""))
                     lines.append("movsd [rsp], xmm0 ; xxx")
             else:
@@ -421,6 +421,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             var_offsets[cmd.lvalue.name] = next_local_offset
             next_local_offset += 8
             body_lines.extend(lines)
+            body_lines.append(";End LetCmd Line")
             
         elif isinstance(cmd, ShowCmd):
             if isinstance(cmd.expr, VarExpr):
@@ -443,7 +444,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
             body_lines.extend(add_rsp(8, "Restore result (8 bytes)"))
             
-        
     total_local = next_local_offset - 16
     if total_local > 0:
         epilogue_lines.append("add rsp, 8 ; Restore alignment")

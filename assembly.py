@@ -84,7 +84,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     def unalign_stack() -> List[str]:
         return stack.unalign()
     
-    def cg_expr(expr, nested: bool = False) -> List[str]:
+    def cg_expr(expr, nested: bool = False , with_align: bool=False) -> List[str]:
         lines = []
         if expr.__class__.__name__ == "IntExpr":
             lab = get_const(expr.value, "int")
@@ -380,14 +380,17 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             stack_items = n * items_per_elem
             elem_size = 8
             total_size = stack_items * elem_size
-            if not nested:
+            if not nested and with_align:
+                lines.append(";If Wrong Align In Array")
                 lines.extend(align_stack(expr.resolved_type))
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
+                
             lines.append(f"mov rdi, {total_size}   ; total size to allocate")
             lines.extend(align_stack(expr.resolved_type))
             lines.append(f"call _jpl_alloc ;")
             lines.extend(unalign_stack())
+
             lines.append(f"; Moving {total_size} bytes from rsp to rax")
             for i in range(stack_items):
                 offset = (stack_items - 1 - i) * elem_size
@@ -397,6 +400,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
             lines.append(f"mov rax, {n}")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+                
                 
         else:
             lines.append("/* unhandled expression */")
@@ -417,7 +421,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     body_lines = []
     for cmd in ast_cmds:
         if isinstance(cmd, LetCmd):
-            lines = cg_expr(cmd.value, nested=False)
+            lines = cg_expr(cmd.value, nested=False , with_align=False)
             var_offsets[cmd.lvalue.name] = next_local_offset
             next_local_offset += 8
             body_lines.extend(lines)
@@ -425,7 +429,21 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             
         elif isinstance(cmd, ShowCmd):
             body_lines.extend(stack.align_current())
-            body_lines.extend(cg_expr(cmd.expr, nested=False))
+            if isinstance(cmd.expr, ArrayLiteralExpr):
+                body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=True))
+            elif isinstance(cmd.expr.resolved_type, ArrayType):
+                body_lines.append("; [ShowCmd] array-var path")
+                body_lines.extend(sub_rsp(8))
+                body_lines.extend(sub_rsp(16))
+                body_lines.append("; Moving 16 bytes from rbp - 24 to rsp")
+                body_lines.append("     mov r10, [rbp - 24 + 8]")
+                body_lines.append("     mov [rsp + 8], r10")
+                body_lines.append("     mov r10, [rbp - 24 + 0]")
+                body_lines.append("     mov [rsp + 0], r10")
+                
+            else:
+                body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
+                
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
             body_lines += [
                 f"lea rdi, [rel {type_lab}]",
@@ -436,6 +454,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
             body_lines.extend(add_rsp(8, "Restore result (8 bytes) "))
     
+
+            
     total_local = next_local_offset - 16
     if total_local > 0:
         epilogue_lines.extend(stack.unalign())

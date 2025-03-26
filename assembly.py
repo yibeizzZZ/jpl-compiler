@@ -59,12 +59,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         return label
 
     def sub_rsp(n: int, comment: str = "Add alignment") -> List[str]:
-        stack.offset += n * -1  # rsp decreases
-        return [f"sub rsp, {n} ; {comment}"]
+        stack.offset += n
+        return [f"sub rsp, {n} ; {comment} ,new offset {stack.offset}"]
 
     def add_rsp(n: int, comment: str = "Remove alignment") -> List[str]:
-        stack.offset += n
-        return [f"add rsp, {n} ; {comment}"]
+        stack.offset -= n
+        return [f"add rsp, {n} ; {comment} ,new offset {stack.offset}"]
 
     def get_size(type_node: TypeNode) -> int:
         if isinstance(type_node, (IntType, FloatType, BoolType)):
@@ -76,6 +76,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         else:
             raise Exception("Unsupported type for get_size")
 
+    def align_stack(type_node: TypeNode) -> List[str]:
+        size = get_size(type_node)
+        return stack.align(size)
+
+    def unalign_stack() -> List[str]:
+        return stack.unalign()
+    
     # 参数 nested 用于控制是否在内部递归中插入对齐指令（仅在最外层添加一次）
     def cg_expr(expr, nested: bool = False) -> List[str]:
         lines = []
@@ -120,7 +127,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "BinopExpr":
             if expr.left.resolved_type.to_s_expression() == "(FloatType)":
                 if expr.op.value == '%':
-                    lines.extend(sub_rsp(8, "Add alignment"))
+                    lines.extend(align_stack(expr.resolved_type))
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
                     lines.append("movsd xmm0, [rsp]")
@@ -128,7 +135,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("movsd xmm1, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("call _fmod")
-                    lines.extend(add_rsp(8, "Remove alignment"))
+                    lines.extend(unalign_stack())
                 elif expr.op.value == '==':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -183,6 +190,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("movsd xmm1, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("divsd xmm0, xmm1")
+                    
                 elif expr.op.value == '<':
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left, nested))
@@ -230,8 +238,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 else:
                     lines.append("/* unhandled float binary operator */")
                 if expr.op.value in ('+', '-', '*', '/', '%'):
-                    lines.extend(sub_rsp(8, "Add alignment"))
-                    lines.append("movsd [rsp], xmm0")
+                    # lines.extend(align_stack(expr.resolved_type))
+                    lines.extend(sub_rsp(8, ""))
+                    lines.append("movsd [rsp], xmm0 ; xxx")
             else:
                 if expr.op.value == '/':
                     nonlocal jump_counter
@@ -244,10 +253,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_div}")
                     fail_label = get_fail_const()
-                    lines.extend(sub_rsp(8, "Add alignment"))
+                    lines.extend(align_stack(expr.resolved_type))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'divide by zero'")
                     lines.append("call _fail_assertion")
-                    lines.extend(add_rsp(8, ""))
+                    lines.extend(unalign_stack()) 
                     lines.append(f"{label_div}:")
                     lines.append("cqo")
                     lines.append("idiv r10")
@@ -262,10 +271,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_mod}")
                     fail_label = get_fail_const_mod()
-                    lines.extend(sub_rsp(8, "Add alignment"))
+                    lines.extend(align_stack(expr.resolved_type))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'mod by zero'")
                     lines.append("call _fail_assertion")
-                    lines.extend(add_rsp(8, "Remove alignment"))
+                    lines.extend(unalign_stack())
                     lines.append(f"{label_mod}:")
                     lines.append("cqo")
                     lines.append("idiv r10")
@@ -366,19 +375,18 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             elem_size = 8
             total_size = stack_items * elem_size
             if not nested:
-                lines.extend(sub_rsp(8, "Add alignment"))
+                lines.extend(align_stack(expr.resolved_type))
+                
+                
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
                 
             lines.append(f"mov rdi, {total_size}   ; total size to allocate")
-            if stack.offset % 16 != 0:
-                lines.extend(sub_rsp(8, "Add alignment"))
-                padded = True
-            else:
-                padded = False
-            lines.append(f"call _jpl_alloc ;{items_per_elem} , {n} , {n%2}")
-            if padded:
-                lines.extend(add_rsp(8, "Remove alignment"))
+            
+            
+            lines.extend(align_stack(expr.resolved_type))
+            lines.append(f"call _jpl_alloc ;")
+            lines.extend(unalign_stack())
                             
             lines.append(f"; Moving {total_size} bytes from rsp to rax")
             for i in range(stack_items):
@@ -390,8 +398,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
             lines.append(f"mov rax, {n}")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
-
-                        
                 
         else:
             lines.append("/* unhandled expression */")
@@ -412,6 +418,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     epilogue_lines = []
     
     body_lines = []
+    
     for cmd in show_cmds:
         lines = cg_expr(cmd.expr, nested=False)
         body_lines.extend(lines)

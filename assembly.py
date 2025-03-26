@@ -17,6 +17,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     jump_counter = 1
     fail_const = None
     fail_const_mod = None
+    literal_flags: Dict[str, bool] = {}
 
     def get_const(value, kind: str) -> str:
         nonlocal num_counter
@@ -423,12 +424,21 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         if isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value, nested=False , with_align=False)
             var_offsets[cmd.lvalue.name] = next_local_offset
+            if isinstance(cmd.value, ArrayLiteralExpr):
+                literal_flags[cmd.lvalue.name] = True
+                next_local_offset += 8  # 額外分配 literal 需要的空間
+            else:
+                literal_flags[cmd.lvalue.name] = False
             next_local_offset += 8
             body_lines.extend(lines)
             body_lines.append(";End LetCmd Line")
             
         elif isinstance(cmd, ShowCmd):
             body_lines.extend(stack.align_current())
+            literal_flag = False
+            if isinstance(cmd.expr, VarExpr):
+                # 從 literal_flags 中取出對應的 flag
+                literal_flag = literal_flags.get(cmd.expr.name, False)
             if isinstance(cmd.expr, ArrayLiteralExpr):
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=True))
             elif isinstance(cmd.expr.resolved_type, ArrayType):
@@ -451,6 +461,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 "call _show"
             ]
             if isinstance(cmd.expr, ArrayLiteralExpr):
+                body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
+            if isinstance(cmd.expr, VarExpr) and literal_flag:
+                # 如果是 literal array，走 literal 還原分支
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
             body_lines.extend(add_rsp(8, "Restore result (8 bytes) "))
     

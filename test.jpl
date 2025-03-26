@@ -1,2 +1,3 @@
-show sum[i : to_int(exp(2.2))] sin(to_float(i))
-
+let a = [1.0, 2.0]
+let b = [a, a]
+show a

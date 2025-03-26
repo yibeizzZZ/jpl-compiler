@@ -2,7 +2,7 @@
 # TEST=./grader/hw4/fail-fuzzer1/001.jpl
 # TEST=./grader/hw8/ok-fuzzer/002.jpl
 TEST = test.jpl
-FLAGS=-i
+FLAGS=-s
 # Default target
 all: help
 
@@ -16,10 +16,10 @@ run:
 
 # Run tests with the auto-grader
 test:
-	make -C ./grader DIR=$(PWD) PART=1 test-hw9
+	make -C ./grader DIR=$(PWD) PART=1 test-hw11
 
 hi:
-	make -C ./grader DIR=$(PWD) PART=1 test-hw8
+	make -C ./grader DIR=$(PWD) PART=1 test-hw10
 # Display help
 help:
 	@echo "Available targets:"

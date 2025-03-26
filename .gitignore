@@ -3,4 +3,7 @@ a.out
 *.class
 *.o
 rt/
+out
+out2
+out3
 grader/

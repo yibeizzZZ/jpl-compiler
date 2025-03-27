@@ -14,6 +14,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     data_lines = []   
     prologue_lines = []
     epilogue_lines = []
+    functions = []
     jump_counter = 1
     fail_const = None
     fail_const_mod = None
@@ -85,6 +86,69 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     def unalign_stack() -> List[str]:
         return stack.unalign()
     
+    def generate_function(cmd: FnCmd) -> str:
+        func_body = []
+        # Record the stack offset after the prologue.
+        ret_type = cmd.return_type
+
+        # For functions returning an array, reserve extra space for the return array pointer.
+        if isinstance(ret_type, ArrayType):
+            prologue = [
+                "    push rbp",
+                "    mov rbp, rsp",
+                "    push rdi  ; reserve space for return array pointer"
+            ]
+        else:
+            prologue = [
+                "    push rbp",
+                "    mov rbp, rsp"
+            ]
+        initial_offset = stack.offset
+        for stmt in cmd.body:
+            if isinstance(stmt, ReturnStmt):
+                # We generate code for the return expression.
+                # This branch will be different for array returns.
+                if isinstance(ret_type, ArrayType):
+                    # Generate code that allocates the array and leaves its pointer on the temporary stack.
+                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
+        
+                    # Now, load the preallocated return address from [rbp - 8]
+                    # (because the prologue pushed rdi, so the return slot is at [rbp - 8]).
+                    func_body.append("    mov rax, [rbp - 8]   ; load reserved return address")
+                    func_body.append("    mov r10, [rsp + 8]")
+                    func_body.append("    mov [rax + 8], r10")
+                    func_body.append("    mov r10, [rsp + 0]")
+                    func_body.append("    mov [rax + 0], r10")
+                    # Now, compute the local space used (note that no extra push of the result was done here).
+                    local_space = stack.offset - initial_offset + 8 # subtract the extra 8 for the reserved rdi
+                    func_body.append(f"add rsp, {local_space} ; Local variables")
+                    func_body.append("pop rbp")
+                    func_body.append("ret")
+                elif isinstance(ret_type, FloatType):
+                    # For a float, assume cg_expr pushes the 8-byte result.
+                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
+                    func_body.append("movsd xmm0, [rsp]")
+                    func_body.append("add rsp, 8")
+                    local_space = stack.offset - initial_offset - 8
+                    func_body.append(f"add rsp, {local_space} ; Local variables")
+                    func_body.append("pop rbp")
+                    func_body.append("ret")
+                else:
+                    # For int, bool, etc.
+                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
+                    func_body.append("pop rax")
+                    local_space = stack.offset - initial_offset - 8
+                    func_body.append(f"add rsp, {local_space} ; Local variables")
+                    func_body.append("pop rbp")
+                    func_body.append("ret")
+            else:
+                func_body.extend(cg_expr(stmt, nested=False, with_align=False))
+        
+        prologue_code = "\n".join(prologue)
+        func_code = "\n".join([prologue_code] + ["    " + line for line in func_body])
+        full_func = f"{cmd.name}:\n_{cmd.name}:\n" + func_code
+        return full_func
+    
     def cg_expr(expr, nested: bool = False , with_align: bool=False) -> List[str]:
         lines = []
         if expr.__class__.__name__ == "IntExpr":
@@ -120,6 +184,18 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.extend(sub_rsp(8))
                 lines.append(f"    mov r10, [rbp - {offset}]")
                 lines.append("    mov [rsp], r10")
+        elif expr.__class__.__name__ == "CallExpr":
+            func_name = expr.function.name
+            lines.append(f"call _{func_name}")
+            # Check if the return type is float:
+            if isinstance(expr.resolved_type, FloatType):
+                lines.extend(add_rsp(8, "Remove alignment for float call"))
+                lines.extend(["sub rsp, 8", "movsd [rsp], xmm0"])
+            elif isinstance(expr.resolved_type, ArrayType):
+                pass
+            else:
+                lines.extend(add_rsp(8, "Remove alignment"))
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -431,7 +507,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     
     body_lines = []
     for cmd in ast_cmds:
-        if isinstance(cmd, LetCmd):
+        if isinstance(cmd, FnCmd):
+            # Use our helper to generate function definitions.
+            functions.append(generate_function(cmd))
+        elif isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value, nested=False , with_align=False)
             var_offsets[cmd.lvalue.name] = next_local_offset
             if isinstance(cmd.value, ArrayLiteralExpr):
@@ -446,11 +525,19 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif isinstance(cmd, ShowCmd):
             body_lines.extend(stack.align_current())
             literal_flag = False
+            # Check if the expression is a VarExpr (for literal arrays)…
             if isinstance(cmd.expr, VarExpr):
-                # 從 literal_flags 中取出對應的 flag
                 literal_flag = literal_flags.get(cmd.expr.name, False)
+            # Now, if the expression is an ArrayLiteralExpr, generate it normally.
             if isinstance(cmd.expr, ArrayLiteralExpr):
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=True))
+            # Else, if it is a CallExpr returning an array, handle it via cg_expr.
+            elif isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
+                body_lines.extend(sub_rsp(8))
+                body_lines.extend(sub_rsp(16))
+                body_lines.append("lea rdi, [rsp]")
+                body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
+            # Otherwise, if it is an array variable (or something else with an ArrayType)
             elif isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.append("; [ShowCmd] array-var path")
                 body_lines.extend(sub_rsp(8))
@@ -462,7 +549,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.append("     mov [rsp + 0], r10")
             else:
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
-                
+            
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
             body_lines += [
                 f"lea rdi, [rel {type_lab}]",
@@ -471,8 +558,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             ]
             if isinstance(cmd.expr, ArrayLiteralExpr):
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
-            if isinstance(cmd.expr, VarExpr) and literal_flag:
-                # 如果是 literal array，走 literal 還原分支
+            elif isinstance(cmd.expr, VarExpr) and literal_flag:
+                # Literal array restore branch.
+                body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
+            elif isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
             body_lines.extend(add_rsp(8, "Restore result (8 bytes) "))
     
@@ -485,7 +574,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     epilogue_lines.extend(stack.pop("r12", 8))
     epilogue_lines.extend(stack.pop("rbp", 8))
     epilogue_lines.append("ret")
-    
+    functions_code = "\n\n".join(functions)
     
     header_lines = [
         "global jpl_main",
@@ -516,7 +605,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     ]
     data_section = ["section .data"] + ["  " + line for line in data_lines] + [""]
     text_section = [
-        "section .text",
+        "section .text"
+    ]
+
+    # Insert function definitions:
+    text_section.append(functions_code)
+    text_section.append("")
+    text_section += [
         "jpl_main:",
         "_jpl_main:"
     ]

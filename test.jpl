@@ -1,3 +1,4 @@
-let a = 1
-let b = [a, a, a, a]
-show b
+fn f() : int[] {
+    return [1, 2, 3]
+}
+show f()

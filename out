@@ -1,489 +1,55 @@
-make -C ./grader DIR=/root/CS4470HWs PART=2 test-hw11
-make[1]: Entering directory '/root/CS4470HWs/grader'
-Homework 11 part 2 ......W
-007.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
+global jpl_main
+global _jpl_main
+extern _fail_assertion
+extern _jpl_alloc
+extern _get_time
+extern _show
+extern _print
+extern _print_time
+extern _read_image
+extern _write_image
+extern _fmod
+extern _sqrt
+extern _exp
+extern _sin
+extern _cos
+extern _tan
+extern _asin
+extern _acos
+extern _atan
+extern _log
+extern _pow
+extern _atan2
+extern _to_int
+extern _to_float
+
+section .data
+  const0: dq 3
+  const1: db `(IntType)`, 0
+
+section .text
 
 
-=======================
-W
-008.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-009.jpl: 11 lines differ
-======= Standard Out: =======
-*** 009.jpl.expected
---- Your compiler
-***************
-*** 24,41 ****
-  extern _to_float
-  section .data
-  const0: dq 1
-! const1: dq 2
-! const2: db `(IntType)`, 0
-  section .text
-  f:
-  _f:
-  push rbp
-  mov rbp, rsp
-- push rdi
-  mov rax, [rel const0]
-  push rax
-  pop rax
-! add rsp, 8
-  pop rbp
-  ret
-  jpl_main:
---- 24,39 ----
-  extern _to_float
-  section .data
-  const0: dq 1
-! const1: db `(IntType)`, 0
-  section .text
-  f:
-  _f:
-  push rbp
-  mov rbp, rsp
-  mov rax, [rel const0]
-  push rax
-  pop rax
-! add rsp, 0
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 45,57 ****
-  push r12
-  mov r12, rbp
-  sub rsp, 8
-- mov rax, [rel const1]
-- push rax
-- pop rdi
-  call _f
-  add rsp, 8
-  push rax
-! lea rdi, [rel const2]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
---- 43,52 ----
-  push r12
-  mov r12, rbp
-  sub rsp, 8
-  call _f
-  add rsp, 8
-  push rax
-! lea rdi, [rel const1]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
-
-=======================
-W
-010.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-011.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-012.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-013.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-014.jpl: 13 lines differ
-======= Standard Out: =======
-*** 014.jpl.expected
---- Your compiler
-***************
-*** 24,42 ****
-  extern _to_float
-  section .data
-  const0: dq 444
-! const1: dq 1.0
-! const2: db `(IntType)`, 0
-  section .text
-  f:
-  _f:
-  push rbp
-  mov rbp, rsp
-- sub rsp, 8
-- movsd [rsp], xmm0
-  mov rax, [rel const0]
-  push rax
-  pop rax
-! add rsp, 8
-  pop rbp
-  ret
-  jpl_main:
---- 24,39 ----
-  extern _to_float
-  section .data
-  const0: dq 444
-! const1: db `(IntType)`, 0
-  section .text
-  f:
-  _f:
-  push rbp
-  mov rbp, rsp
-  mov rax, [rel const0]
-  push rax
-  pop rax
-! add rsp, 0
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 46,59 ****
-  push r12
-  mov r12, rbp
-  sub rsp, 8
-- mov rax, [rel const1]
-- push rax
-- movsd xmm0, [rsp]
-- add rsp, 8
-  call _f
-  add rsp, 8
-  push rax
-! lea rdi, [rel const2]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
---- 43,52 ----
-  push r12
-  mov r12, rbp
-  sub rsp, 8
-  call _f
-  add rsp, 8
-  push rax
-! lea rdi, [rel const1]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
-
-=======================
-W
-015.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-016.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-017.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-018.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-019.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-020.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-021.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-022.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-023.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-024.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-025.jpl: 47 lines differ
-======= Standard Out: =======
-*** 025.jpl.expected
---- Your compiler
-***************
-*** 24,32 ****
-  extern _to_float
-  section .data
-  const0: dq 4
-! const1: dq 1
-! const2: dq 0
-! const3: db `(IntType)`, 0
-  section .text
-  f:
-  _f:
---- 24,30 ----
-  extern _to_float
-  section .data
-  const0: dq 4
-! const1: db `(IntType)`, 0
-  section .text
-  f:
-  _f:
-***************
-*** 45,93 ****
-  push r12
-  mov r12, rbp
-  sub rsp, 8
-! mov rax, [rel const1]
-! push rax
-! mov rdi, 8
-! sub rsp, 8
-! call _jpl_alloc
-! add rsp, 8
-! mov r10, [rsp]
-! mov [rax], r10
-  add rsp, 8
-  push rax
-! mov rax, 1
-! push rax
-! mov rax, [rel const2]
-! push rax
-! mov rdi, 8
-! sub rsp, 8
-! call _jpl_alloc
-! add rsp, 8
-! mov r10, [rsp]
-! mov [rax], r10
-! add rsp, 8
-! push rax
-! mov rax, 1
-! push rax
-! mov rax, [rel const1]
-! push rax
-! mov rdi, 8
-! sub rsp, 8
-! call _jpl_alloc
-! add rsp, 8
-! mov r10, [rsp]
-! mov [rax], r10
-! add rsp, 8
-! push rax
-! mov rax, 1
-! push rax
-! call _f
-! add rsp, 16
-! add rsp, 16
-! add rsp, 16
-! add rsp, 8
-! push rax
-! lea rdi, [rel const3]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
---- 43,52 ----
-  push r12
-  mov r12, rbp
-  sub rsp, 8
-! call _f
-  add rsp, 8
-  push rax
-! lea rdi, [rel const1]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
-
-=======================
-W
-026.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-027.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-028.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-029.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-030.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-031.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-032.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-033.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-034.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-035.jpl: 20 lines differ
-======= Standard Out: =======
-*** 035.jpl.expected
---- Your compiler
-***************
-*** 30,54 ****
-  push rbp
-  mov rbp, rsp
-  push rdi
-- sub rsp, 56
-- lea rdi, [rsp]
-  call _f
-  mov rax, [rbp - 8]
-- mov r10, [rsp + 48]
-- mov [rax + 48], r10
-- mov r10, [rsp + 40]
-- mov [rax + 40], r10
-- mov r10, [rsp + 32]
-- mov [rax + 32], r10
-- mov r10, [rsp + 24]
-- mov [rax + 24], r10
-- mov r10, [rsp + 16]
-- mov [rax + 16], r10
-  mov r10, [rsp + 8]
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 64
-  pop rbp
-  ret
-  jpl_main:
---- 30,42 ----
-  push rbp
-  mov rbp, rsp
-  push rdi
-  call _f
-  mov rax, [rbp - 8]
-  mov r10, [rsp + 8]
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 8
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 57,69 ****
-  mov rbp, rsp
-  push r12
-  mov r12, rbp
-! sub rsp, 56
-  lea rdi, [rsp]
-  call _f
-  lea rdi, [rel const0]
-  lea rsi, [rsp]
-  call _show
-! add rsp, 56
-  pop r12
-  pop rbp
-  ret
---- 45,59 ----
-  mov rbp, rsp
-  push r12
-  mov r12, rbp
-! sub rsp, 8
-! sub rsp, 16
-  lea rdi, [rsp]
-  call _f
-  lea rdi, [rel const0]
-  lea rsi, [rsp]
-  call _show
-! add rsp, 16
-! add rsp, 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-
-Passed 6/35 = 17.1% tests
-make[1]: Leaving directory '/root/CS4470HWs/grader'
+jpl_main:
+_jpl_main:
+    push rbp; new offset: 8
+    mov rbp, rsp
+    push r12; new offset: 16
+    mov r12, rbp ; end of jpl_main prelude
+    mov rax, [rel const0] ; 3
+    push rax ;  actually 8 bytes, new offset: 24
+    ;End LetCmd Line
+    ; This is from VarExpr -------
+    sub rsp, 8 ; Add alignment ,new offset 32
+        mov r10, [rbp - 16]
+        mov [rsp], r10
+    lea rdi, [rel const1]
+    lea rsi, [rsp]
+    call _show
+    add rsp, 8 ; Restore result (8 bytes)  ,new offset 24
+    add rsp, 8 ; Local variables ,new offset 16
+    pop r12 ; rax, actually 8 bytes, new offset: 8
+    pop rbp ; r12, actually 8 bytes, new offset: 0
+    ret
+ 
+Compilation succeeded

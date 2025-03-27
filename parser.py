@@ -706,8 +706,8 @@ class Parser:
                 self.match(DOT)
                 field_tok = self.match(VARIABLE)
 
-                if isinstance(expr, (TrueExpr, FalseExpr, VoidExpr)):
-                    raise SyntaxError(f"Invalid use of '.' on {expr}")
+                # if isinstance(expr, (TrueExpr, FalseExpr, VoidExpr)):
+                #     raise SyntaxError(f"Invalid use of '.' on {expr}")
                 expr = DotExpr(start_idx=expr.start_idx, left=expr, right=field_tok.name)
             elif isinstance(current, LSQUARE):
                 self.match(LSQUARE)

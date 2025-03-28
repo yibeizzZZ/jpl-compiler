@@ -55,11 +55,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             else:
                 lines.append("; This is from VarExpr -------")
                 # lines.extend(align_stack(expr.resolved_type))
-                if not Var_No_align:
-                    lines.extend(stack.align_current())
+                # if not Var_No_align:
+                #     lines.extend(stack.align_current())
                 lines.extend(sub_rsp(get_size(expr.resolved_type)))
                 lines.append(f"    mov r10, [rbp - {offset}]")
                 lines.append("    mov [rsp], r10")
+                
+
         elif expr.__class__.__name__ == "CallExpr":
             
 
@@ -97,16 +99,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
 
             lines.append("; End of CallExpr")
             
-            
-            
-            
-            
-            
-            
-            
-            
-            
-            
+
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -132,7 +125,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "BinopExpr":
             if expr.left.resolved_type.to_s_expression() == "(FloatType)":
                 if expr.op.value == '%':
-                    lines.extend(align_stack(expr.resolved_type))
+                    lines.extend(stack.align_current())
                     lines.extend(cg_expr(expr.right, Var_No_align = True))
                     lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
@@ -248,7 +241,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             else:
                 if expr.op.value == '/':
                     nonlocal jump_counter
-                    lines.extend(cg_expr(expr.right, nested))
+                    lines.extend(cg_expr(expr.right))
                     lines.extend(cg_expr(expr.left,Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
@@ -257,9 +250,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_div}")
                     fail_label = get_fail_const()
-                    lines.append(f";try insert {get_size(expr)} for {expr.resolved_type} , now {stack.offset}")
-                    # lines.extend(stack.align_current())
-                    lines.extend(stack.align(get_size(expr.resolved_type)))
+
+                    lines.extend(stack.align_current())
+                    # lines.append(f";try insert {get_size(expr)} for {expr.resolved_type} , now {stack.offset}")
+                    # lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'divide by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack()) 
@@ -268,6 +262,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("idiv r10")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '%':
+                    # Need to align before cg_expr
+                    lines.append(";;;Start mod")
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left,Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
@@ -277,8 +273,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_mod}")
                     fail_label = get_fail_const_mod()
-                    # lines.extend(stack.align_current())
-                    lines.extend(stack.align(get_size(expr.resolved_type)))
+                    lines.extend(stack.align_current())
+                    # lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'mod by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack())
@@ -379,14 +375,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             stack_items = n * items_per_elem
             elem_size = 8
             total_size = stack_items * elem_size
-            if not nested and with_align:
-                lines.append(";If Wrong Align In Array")
-                lines.extend(align_stack(expr.resolved_type))
+
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem, nested=True))
                 
             lines.append(f"mov rdi, {total_size}   ; total size to allocate")
-            lines.extend(align_stack(expr.resolved_type))
+            lines.extend(stack.align_current())
             lines.append(f"call _jpl_alloc ;")
             lines.extend(unalign_stack())
 
@@ -395,10 +389,11 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 offset = (stack_items - 1 - i) * elem_size
                 lines.append(f"    mov r10, [rsp + {offset}]")
                 lines.append(f"    mov [rax + {offset}], r10")
+                
             lines.extend(add_rsp(total_size, ""))
-            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            lines.extend(stack.push_reg("rax", 8))
             lines.append(f"mov rax, {n}")
-            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            lines.extend(stack.push_reg("rax", 8))
                 
                 
         else:
@@ -460,32 +455,17 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         stack.offset -= n
         return [f"add rsp, {n} ; {comment} ,new offset {stack.offset}"]
     
-
-                            
     def get_size(type_node: TypeNode) -> int:
-        if isinstance(type_node, (ArrayLiteralExpr)):
+        if isinstance(type_node, (ArrayType)):
             return 16
-        elif isinstance(type_node, (IntType, FloatType, BoolType, StructType, ArrayType)):
+        elif isinstance(type_node, (IntType, FloatType, BoolType)):
             return 8
-        elif isinstance(type_node, (VoidType, IntExpr,FloatExpr,TrueExpr,FalseExpr)):
-            return 0
-
-        elif isinstance(type_node, (VarExpr)):
-            return get_size(type_node.resolved_type)
-        elif isinstance(type_node, (CallExpr)):
-            return get_size(type_node.resolved_type)
-        
-        elif isinstance(type_node, (UnopExpr)):
-            return 0
-        elif isinstance(type_node, (BinopExpr)):
-            
-            left = get_size(type_node.left)
-            right = get_size(type_node.right)
-            return left + right
-        
-
-        else:
+        elif isinstance(type_node, (VoidType , StructType)):
             raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
+        
+        else:
+            return get_size(type_node.resolved_type)
+                            
 
     def align_stack(type_node: TypeNode) -> List[str]:
         size = get_size(type_node)
@@ -528,10 +508,11 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         return "\n".join(func_body)
 
     prologue_lines = []
-    prologue_lines.extend(stack.push_reg("rbp", 8))
+    prologue_lines.append("push rbp")
     prologue_lines.append("mov rbp, rsp")
-    prologue_lines.extend(stack.push_reg("r12", 8))
+    prologue_lines.append("push r12")
     prologue_lines.append("mov r12, rbp ; end of jpl_main prelude\n")
+    stack.offset += 8
     
     epilogue_lines = []
     
@@ -559,6 +540,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif isinstance(cmd, ShowCmd):
             body_lines.append(f"\n    ;Start ShowCmd {cmd.expr} as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
             body_lines.extend(stack.align(get_size(cmd.expr)))
+            
             literal_flag = False
             if isinstance(cmd.expr, VarExpr):
                 literal_flag = literal_flags.get(cmd.expr.name, False)
@@ -587,26 +569,18 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 "lea rsi, [rsp]",
                 "call _show"
             ]
-            body_lines.append(f";{cmd.expr}")
-            if(isinstance(cmd.expr , (ArrayLiteralExpr))):
-                body_lines.extend(add_rsp(get_size(cmd.expr)))
-            elif(isinstance(cmd.expr.resolved_type , ArrayType)):
-                body_lines.extend(add_rsp(get_size(cmd.expr)*2)) 
-            else:
-                body_lines.extend(add_rsp(get_size(cmd.expr.resolved_type)))
-            
-            
+            body_lines.extend(add_rsp(get_size(cmd.expr.resolved_type)))
             body_lines.extend(stack.unalign())
+            body_lines.append(f";End of ShowCmd \n")
     
 
             
-    total_local = stack.offset  - 16
+    total_local = stack.offset  - 8
     if total_local > 0:
-        epilogue_lines.extend(stack.unalign())
-        total_local = stack.offset  - 16
+        
         epilogue_lines.extend(add_rsp(total_local ,"Local variables"))
-    epilogue_lines.extend(stack.pop("r12", 8))
-    epilogue_lines.extend(stack.pop("rbp", 8))
+    epilogue_lines.append("pop r12")
+    epilogue_lines.append("pop rbp")
     epilogue_lines.append("ret")
     functions_code = "\n\n".join(functions)
     

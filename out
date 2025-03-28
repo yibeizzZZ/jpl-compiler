@@ -24,66 +24,44 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 0
-  const1: dq 1
-  const2: db `(ArrayType (BoolType) 1)`, 0
+  const0: dq 1
+  const1: db `(ArrayType (BoolType) 1)`, 0
 
 section .text
-f:
-_f:
-; NOTICE! Here INSERT a 0 padding
-push rbp ; Save old rbp; new offset: 24
-mov rbp, rsp
-push rdi; new offset: 32
-mov rax, [rel const0] ; false
-push rax ;  actually 8 bytes, new offset: 40
-mov rax, [rel const1] ; true
-push rax ;  actually 8 bytes, new offset: 48
-mov rdi, 16   ; total size to allocate
-sub rsp, 8 ; align stack by 8, new offset 56,now have [0, 8] in align stack
-call _jpl_alloc ;
-add rsp, 8 ; remove padding of 8, new offset 48
-; Moving 16 bytes from rsp to rax
-    mov r10, [rsp + 8]
-    mov [rax + 8], r10
-    mov r10, [rsp + 0]
-    mov [rax + 0], r10
-add rsp, 16 ;  ,new offset 32
-push rax ;  actually 8 bytes, new offset: 40
-mov rax, 2
-push rax ;  actually 8 bytes, new offset: 48
-pop rax ; rax, actually 8 bytes, new offset: 40
-add rsp, 8 ; Local variables
+
 
 jpl_main:
 _jpl_main:
-    push rbp; new offset: 8
+    push rbp
     mov rbp, rsp
-    push r12; new offset: 16
+    push r12
     mov r12, rbp ; end of jpl_main prelude
 
     
-    ;Start ShowCmd CallExpr(start_idx=50, function=VarExpr(start_idx=50, name='f'), arguments=[]) as ArrayType(start_idx=8, element_type=BoolType(start_idx=6), dimension=1) ,NEED 8
-    ; NOTICE! Here INSERT a 0 padding for 40 and 8
-    sub rsp, 8 ; pop stack ,new offset 48
-    sub rsp, 16 ; pop stack ,new offset 64
-    lea rdi, [rsp]
-    ; Start of CallExpr with space 0
-    ; NOTICE! Here INSERT a 0 padding for 64 and 0
-    call _f
-    ; NOTICE! Here REMOVE a 0 padding
-    push rax ;  actually 8 bytes, new offset: 72
-    ; End of CallExpr
-    lea rdi, [rel const2]
+    ;Start ShowCmd ArrayLiteralExpr(start_idx=4, elements=[TrueExpr(start_idx=3)]) as ArrayType(start_idx=4, element_type=BoolType(start_idx=3), dimension=1) ,NEED 16
+    sub rsp, 8 ; align stack by 8, new offset 16,now have [8] in align stack
+    mov rax, [rel const0] ; true
+    push rax ;  actually 8 bytes, new offset: 24
+    mov rdi, 8   ; total size to allocate
+    sub rsp, 8 ; align *current* stack by 8, new offset 32
+    call _jpl_alloc ;
+    add rsp, 8 ; remove padding of 8, new offset 24, now have [8]
+    ; Moving 8 bytes from rsp to rax
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 8 ;  ,new offset 16
+    push rax; new offset: 24
+    mov rax, 1
+    push rax; new offset: 32
+    lea rdi, [rel const1]
     lea rsi, [rsp]
     call _show
-    ;CallExpr(start_idx=50, function=VarExpr(start_idx=50, name='f'), arguments=[])
-    add rsp, 16 ; push stack ,new offset 56
-    ; NOTICE! Here REMOVE a 0 padding
-    ; NOTICE! Here REMOVE a 0 padding
-    add rsp, 40 ; Local variables ,new offset 16
-    pop r12 ; rax, actually 8 bytes, new offset: 8
-    pop rbp ; rax, actually 8 bytes, new offset: 0
+    add rsp, 16 ; push stack ,new offset 16
+    add rsp, 8 ; remove padding of 8, new offset 8, now have []
+    ;End of ShowCmd 
+
+    pop r12
+    pop rbp
     ret
  
 Compilation succeeded

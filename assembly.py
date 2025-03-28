@@ -75,11 +75,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 return_value_space = get_size(expr.resolved_type)
             else:
                 return_value_space = 0
-
             space_needed = total_stack - return_value_space
             lines.append(f"; Start of CallExpr with space {space_needed}")
             # 调用 stack.align 并用 extend 添加生成的指令
-            lines.extend(stack.align(space_needed))
 
             # 生成实参代码（从右到左）
             for arg in reversed(expr.arguments):
@@ -92,8 +90,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # # 还原对齐：同样用 extend
             lines.extend(stack.unalign())
 
-            # # 将返回值 (rax) 压栈
-            lines.extend(stack.push("rax",get_size(expr.resolved_type)))
+            # 将返回值 (rax) 压栈
+            if isinstance(expr.resolved_type, FloatType):
+                # Instead of pushing into rax, load the float from the stack directly into xmm0:
+                lines.append(f"sub rsp, {get_size(expr.resolved_type)}")
+                lines.append("movsd [rsp], xmm0")
+            else:
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
 
             lines.append("; End of CallExpr")
             
@@ -486,7 +489,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
 
         else:
             raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
-
+    
+    def pop_float_from_stack(reg: str, type_node: TypeNode) -> List[str]:
+        size = get_size(type_node)
+        stack.pop(reg, size)
+        return [f"movsd {reg}, [rsp]", f"add rsp, {size}"]
+   
     def align_stack(type_node: TypeNode) -> List[str]:
         size = get_size(type_node)
         return stack.align(size)
@@ -516,7 +524,21 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             if isinstance(stmt, ReturnStmt):
                 expr_lines = cg_expr(stmt.expr, nested=False, with_align=False)
                 func_body.extend(expr_lines)
-                func_body.extend(stack.pop("rax", get_size(stmt.expr.resolved_type)))
+                if isinstance(stmt.expr.resolved_type, FloatType):
+                    func_body.extend(pop_float_from_stack("xmm0", stmt.expr.resolved_type))
+                elif isinstance(stmt.expr.resolved_type, ArrayType):
+                    composite_size = 16
+                    func_body.append("mov rax, [rbp - 8] ; Address to write return value into")
+                    func_body.append(f"; Moving {composite_size} bytes from rsp to rax")
+                    # Copy the composite value from the stack into the caller's return area.
+                    func_body.append("mov r10, [rsp + 8] ; get composite part (e.g., length)")
+                    func_body.append("mov [rax + 8], r10")
+                    func_body.append("mov r10, [rsp + 0] ; get composite part (e.g., pointer)")
+                    func_body.append("mov [rax + 0], r10")
+                    # Clean up the 16 bytes from the stack that held the composite value.
+                else:
+                    func_body.extend(stack.pop("rax", get_size(stmt.expr.resolved_type)))
+                    
             else:
                 func_body.extend(cg_expr(stmt, nested=False, with_align=False))
         
@@ -525,6 +547,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         func_body.append(f"add rsp, {total_local} ; Local variables")
         # func_body.extend(cc.generate_epilogue())
         
+        if isinstance(cmd.return_type, ArrayType):
+            func_body.append("pop rbp")
+            # func_body.extend(stack.pop_reg("rbp", 8))
+            pass
+        else:
+            func_body.extend(stack.pop_reg("rbp", 8))
+        func_body.append("ret")
         return "\n".join(func_body)
 
     prologue_lines = []

@@ -33,7 +33,7 @@ class CallingConvention:
         """
         lines = []
         # 对齐当前栈
-        lines.extend(self.stack.align_current())
+        # lines.extend(self.stack.align_current())
 
         # 保存旧的 rbp
         lines.extend(self.stack.push_reg("rbp", 8, comment="Save old rbp"))

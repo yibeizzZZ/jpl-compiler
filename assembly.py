@@ -49,7 +49,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append("; This is from VarExpr (literal array) -------")
                 lines.extend(sub_rsp(16))  # instead of two sub_rsp(8)
                 lines.append(f"    mov r10, [rbp - {new_offset} + 8]")
-                lines.append(f"    mov [rsp + 8], r10")
+                lines.append("    mov [rsp + 8], r10")
                 lines.append(f"    mov r10, [rbp - {new_offset} + 0]")
                 lines.append("    mov [rsp + 0], r10")
             else:
@@ -80,7 +80,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             space_needed = total_stack - return_value_space
             lines.append(f"; Start of CallExpr with space {space_needed}")
             # 调用 stack.align 并用 extend 添加生成的指令
-
+            lines.extend(stack.align_current())
             # 生成实参代码（从右到左）
             for arg in reversed(expr.arguments):
                 lines.extend(cg_expr(arg, nested=True))
@@ -488,6 +488,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     def unalign_stack() -> List[str]:
         
         return stack.unalign()
+    
+    def pop_float_from_stack(reg: str, type_node: TypeNode) -> List[str]:
+        size = get_size(type_node)
+        stack.pop(reg, size)
+        return [f"movsd {reg}, [rsp]", f"add rsp, {size}"]
+        
     def generate_function(cmd: FnCmd) -> str:
         func_body = []
         # 插入入口标签

@@ -13,6 +13,8 @@ class Stack:
         if leftovers > 0:
             instructions.append(f"sub rsp, {leftovers} ; align stack by {leftovers}, new offset {self.offset + leftovers},now have {self.padding_stack} in align stack")
             self.offset += leftovers
+        elif leftovers == 0:
+            instructions.append(f"; NOTICE! Here INSERT a 0 padding for {self.offset} and {type_size}")
         return instructions
 
     def unalign(self) -> List[str]:
@@ -20,16 +22,12 @@ class Stack:
         if not self.padding_stack:
             instructions.append(";Nothing in Padding")
             return instructions
-        
-        padding = 0
-        while padding == 0:
-            if not self.padding_stack:
-                instructions.append(";Nothing in Padding")
-                return instructions
-            padding = self.padding_stack.pop()
-        
-        instructions.append(f"add rsp, {padding} ; remove padding of {padding}, new offset {self.offset - padding}")
-        self.offset -= padding
+        padding = self.padding_stack.pop()
+        if padding > 0:
+            instructions.append(f"add rsp, {padding} ; remove padding of {padding}, new offset {self.offset - padding}")
+            self.offset -= padding
+        elif padding == 0:
+            instructions.append(f"; NOTICE! Here REMOVE a 0 padding")
             
         return instructions
 
@@ -43,6 +41,9 @@ class Stack:
                 f"sub rsp, {leftover} ; align *current* stack by {leftover}, new offset {self.offset + leftover}"
             )
             self.offset += leftover
+        elif leftover == 0:
+            alignment_instructions.append("; NOTICE! Here INSERT a 0 padding")
+        
         return alignment_instructions
     
     def push(self, value: str, size: int, description: str = "") -> List[str]:

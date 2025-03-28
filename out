@@ -1,4 +1,4 @@
-python3 compiler.py -s grader/hw11/ok1/007.jpl
+python3 compiler.py -s grader/hw11/ok1/035.jpl
 global jpl_main
 global _jpl_main
 extern _fail_assertion
@@ -26,8 +26,10 @@ extern _to_float
 
 section .data
   const0: dq 1
-  const1: dq 2
-  const2: db `(BoolType)`, 0
+  const1: dq 2.0
+  const2: dq 1.0
+  const3: dq 3
+  const4: db `(IntType)`, 0
 
 section .text
 
@@ -39,30 +41,56 @@ _jpl_main:
     push r12; new offset: 16
     mov r12, rbp ; end of jpl_main prelude
 
-    mov rax, [rel const0] ; true
+    mov rax, [rel const0] ; 1
     push rax ;  actually 8 bytes, new offset: 24
     ;End LetCmd Line
 
-    mov rax, [rel const1] ; 2
+    mov rax, [rel const1] ; 2.0
     push rax ;  actually 8 bytes, new offset: 32
+    mov rax, [rel const2] ; 1.0
+    push rax ;  actually 8 bytes, new offset: 40
+    mov rdi, 16   ; total size to allocate
+    ; NOTICE! Here INSERT a 0 padding for 40 and 8
+    call _jpl_alloc ;
+    ; NOTICE! Here REMOVE a 0 padding
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16 ;  ,new offset 24
+    push rax ;  actually 8 bytes, new offset: 32
+    mov rax, 2
+    push rax ;  actually 8 bytes, new offset: 40
     ;End LetCmd Line
 
-    ;Start ShowCmd BoolType(start_idx=29) ,NEED 8
-    sub rsp, 8 ; align stack by 8, new offset 40,now have [8] in align stack
+    mov rax, [rel const3] ; 3
+    push rax ;  actually 8 bytes, new offset: 48
+    ;End LetCmd Line
+
+    ;Start ShowCmd BinopExpr(start_idx=49, left=VarExpr(start_idx=49, name='c'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=53, name='d')) as IntType(start_idx=49) ,NEED 16
+    ; NOTICE! Here INSERT a 0 padding for 48 and 16
     ; This is from VarExpr -------
-    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    ; NOTICE! Here INSERT a 0 padding
     sub rsp, 8 ; pop stack ,new offset 56
-        mov r10, [rbp - 16]
+        mov r10, [rbp - 48]
         mov [rsp], r10
-    pop rax ; rax, actually 8 bytes, new offset: 48
-    xor rax, 1
+    ; This is from VarExpr -------
+    sub rsp, 8 ; pop stack ,new offset 64
+        mov r10, [rbp - 32]
+        mov [rsp], r10
+    pop rax ; rax, actually 8 bytes, new offset: 56
+    pop r10 ; rax, actually 8 bytes, new offset: 48
+    add rax, r10
     push rax ;  actually 8 bytes, new offset: 56
-    lea rdi, [rel const2]
+    lea rdi, [rel const4]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; Restore result (8 bytes)  ,new offset 48
-    add rsp, 8 ; remove padding of 8, new offset 40
-    add rsp, 24 ; Local variables ,new offset 16
+    ;BinopExpr(start_idx=49, left=VarExpr(start_idx=49, name='c'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=53, name='d'))
+    add rsp, 8 ; push stack ,new offset 48
+    ; NOTICE! Here REMOVE a 0 padding
+    ; NOTICE! Here REMOVE a 0 padding
+    add rsp, 32 ; Local variables ,new offset 16
     pop r12 ; rax, actually 8 bytes, new offset: 8
     pop rbp ; rax, actually 8 bytes, new offset: 0
     ret

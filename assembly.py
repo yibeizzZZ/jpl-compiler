@@ -42,7 +42,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # Check if this variable is a literal array:
             if literal_flags.get(expr.name, False):
                 # Generate the alternative block for literal arrays:
-                new_offset = offset + 8  
+                new_offset = offset + get_size(expr)  
                 lines.append("; This is from VarExpr (literal array) -------")
                 lines.extend(sub_rsp(16))  # instead of two sub_rsp(8)
                 lines.append(f"    mov r10, [rbp - {new_offset} + 8]")
@@ -95,8 +95,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             if expr.left.resolved_type.to_s_expression() == "(FloatType)":
                 if expr.op.value == '%':
                     lines.extend(align_stack(expr.resolved_type))
-                    lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.right, Var_No_align = True))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -105,7 +105,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(unalign_stack())
                 elif expr.op.value == '==':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -116,7 +116,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '!=':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -127,7 +127,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '+':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left,Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -135,7 +135,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("addsd xmm0, xmm1")
                 elif expr.op.value == '-':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left,Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -143,7 +143,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("subsd xmm0, xmm1")
                 elif expr.op.value == '*':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -151,7 +151,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("mulsd xmm0, xmm1")
                 elif expr.op.value == '/':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -160,7 +160,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     
                 elif expr.op.value == '<':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -171,7 +171,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '>':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.append("movsd xmm0, [rsp]")
                     lines.extend(add_rsp(8, ""))
                     lines.append("movsd xmm1, [rsp]")
@@ -211,7 +211,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 if expr.op.value == '/':
                     nonlocal jump_counter
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left,Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp r10, 0")
@@ -219,7 +219,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_div}")
                     fail_label = get_fail_const()
-                    lines.extend(align_stack(expr.resolved_type))
+                    lines.append(f";try insert {get_size(expr)} for {expr.resolved_type} , now {stack.offset}")
+                    # lines.extend(stack.align_current())
+                    lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'divide by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack()) 
@@ -229,7 +231,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '%':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left,Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp r10, 0")
@@ -237,7 +239,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_mod}")
                     fail_label = get_fail_const_mod()
-                    lines.extend(align_stack(expr.resolved_type))
+                    lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'mod by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack())
@@ -287,7 +289,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '<':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp rax, r10")
@@ -296,7 +298,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '>':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp rax, r10")
@@ -305,7 +307,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '<=':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp rax, r10")
@@ -314,7 +316,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '>=':
                     lines.extend(cg_expr(expr.right, nested))
-                    lines.extend(cg_expr(expr.left, nested))
+                    lines.extend(cg_expr(expr.left, Var_No_align = True))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp rax, r10")
@@ -415,7 +417,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         stack.offset += n
         return [f"sub rsp, {n} ; {comment} ,new offset {stack.offset}"]
 
-    def add_rsp(n: int, comment: str = "Remove alignment") -> List[str]:
+    def add_rsp(n: int, comment: str = "push stack") -> List[str]:
         if n == 0:
             return
         stack.offset -= n
@@ -424,21 +426,24 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
 
                             
     def get_size(type_node: TypeNode) -> int:
-        if isinstance(type_node, (IntType, FloatType, BoolType, StructType, ArrayType)):
+        if isinstance(type_node, (ArrayLiteralExpr)):
+            return 16
+        elif isinstance(type_node, (IntType, FloatType, BoolType, StructType, ArrayType)):
             return 8
-        elif isinstance(type_node, (VoidType, IntExpr,FloatExpr,TrueExpr,FalseExpr,ArrayLiteralExpr)):
+        elif isinstance(type_node, (VoidType, IntExpr,FloatExpr,TrueExpr,FalseExpr)):
             return 0
+
         elif isinstance(type_node, (VarExpr)):
             return get_size(type_node.resolved_type)
         elif isinstance(type_node, (UnopExpr)):
-            if isinstance(type_node.operand,VarExpr):
-                return get_size(type_node.resolved_type)
-            else:
-                return 0
-        elif isinstance(type_node, (BinopExpr )):
+            return 0
+        elif isinstance(type_node, (BinopExpr)):
+            
             left = get_size(type_node.left)
             right = get_size(type_node.right)
             return left + right
+        
+
         else:
             raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
 
@@ -527,20 +532,24 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         if isinstance(cmd, FnCmd):
             functions.append(generate_function(cmd))
         elif isinstance(cmd, LetCmd):
-            lines = cg_expr(cmd.value, nested=False , with_align=False)
+            lines = cg_expr(cmd.value, nested=False, with_align=False)
             var_offsets[cmd.lvalue.name] = next_local_offset
+            next_local_offset += 8
+            if isinstance(cmd.lvalue, ArrayLValue):
+                for idx in cmd.lvalue.indices:
+                    var_offsets[idx] = next_local_offset
+                    next_local_offset += 8
             if isinstance(cmd.value, ArrayLiteralExpr):
                 literal_flags[cmd.lvalue.name] = True
-                next_local_offset += 8  # 額外分配 literal 需要的空間
+                next_local_offset += 8  
             else:
                 literal_flags[cmd.lvalue.name] = False
-            next_local_offset += 8
             body_lines.extend(lines)
-            body_lines.append(";End LetCmd Line")
+            body_lines.append(";End LetCmd Line\n")
             
         elif isinstance(cmd, ShowCmd):
-            body_lines.append(f";Start ShowCmd {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr.resolved_type)}")
-            body_lines.extend(align_stack(cmd.expr))
+            body_lines.append(f";Start ShowCmd {cmd.expr} as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
+            body_lines.extend(stack.align(get_size(cmd.expr)))
             literal_flag = False
             if isinstance(cmd.expr, VarExpr):
                 literal_flag = literal_flags.get(cmd.expr.name, False)
@@ -553,7 +562,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
             elif isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.append("; [ShowCmd] array-var path")
-                body_lines.extend(sub_rsp(8))
+                body_lines.extend(stack.align(get_size(cmd.expr.resolved_type)))
                 body_lines.extend(sub_rsp(16))
                 body_lines.append("; Moving 16 bytes from rbp - 24 to rsp")
                 body_lines.append("     mov r10, [rbp - 24 + 8]")
@@ -569,16 +578,16 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 "lea rsi, [rsp]",
                 "call _show"
             ]
+            body_lines.append(f";{cmd.expr}")
+            if(isinstance(cmd.expr , (ArrayLiteralExpr))):
+                body_lines.extend(add_rsp(get_size(cmd.expr)))
+            elif(isinstance(cmd.expr.resolved_type , ArrayType)):
+                body_lines.extend(add_rsp(get_size(cmd.expr)*2)) 
+            else:
+                body_lines.extend(add_rsp(get_size(cmd.expr.resolved_type)))
             
             
-            if isinstance(cmd.expr, ArrayLiteralExpr):
-                body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
-            elif isinstance(cmd.expr, VarExpr) and literal_flag:
-                # Literal array restore branch.
-                body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
-            elif isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
-                body_lines.extend(add_rsp(16, "Restore array literal result (16 bytes)"))
-            body_lines.extend(add_rsp(8, "Restore result (8 bytes) "))
+            body_lines.extend(stack.unalign())
     
 
             

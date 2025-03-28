@@ -24,8 +24,9 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 3
-  const1: db `(IntType)`, 0
+  const0: dq 1
+  const1: dq 2
+  const2: db `(BoolType)`, 0
 
 section .text
 
@@ -36,18 +37,35 @@ _jpl_main:
     mov rbp, rsp
     push r12; new offset: 16
     mov r12, rbp ; end of jpl_main prelude
-    mov rax, [rel const0] ; 3
+    mov rax, [rel const0] ; true
     push rax ;  actually 8 bytes, new offset: 24
     ;End LetCmd Line
+    mov rax, [rel const1] ; 2
+    push rax ;  actually 8 bytes, new offset: 32
+    ;End LetCmd Line
+    ;Start ShowCmd BoolType(start_idx=28)
+    sub rsp, 8 ; align stack by 8, new offset 40
     ; This is from VarExpr -------
-    sub rsp, 8 ; Add alignment ,new offset 32
+    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    sub rsp, 8 ; pop stack ,new offset 56
         mov r10, [rbp - 16]
         mov [rsp], r10
-    lea rdi, [rel const1]
+    ; This is from VarExpr -------
+    sub rsp, 8 ; pop stack ,new offset 64
+        mov r10, [rbp - 16]
+        mov [rsp], r10
+    pop rax ; rax, actually 8 bytes, new offset: 56
+    pop r10 ; rax, actually 8 bytes, new offset: 48
+    cmp rax, r10
+    setne al
+    and rax, 1
+    push rax ;  actually 8 bytes, new offset: 56
+    lea rdi, [rel const2]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; Restore result (8 bytes)  ,new offset 24
-    add rsp, 8 ; Local variables ,new offset 16
+    add rsp, 8 ; Restore result (8 bytes)  ,new offset 48
+    add rsp, 8 ; remove padding of 8, new offset 40
+    add rsp, 24 ; Local variables ,new offset 16
     pop r12 ; rax, actually 8 bytes, new offset: 8
     pop rbp ; r12, actually 8 bytes, new offset: 0
     ret

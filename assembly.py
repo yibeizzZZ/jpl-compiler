@@ -2,6 +2,7 @@ from typing import Dict, List
 from parser import *
 from typechecker import typecheck_program
 from stack import Stack  
+from callingConvention import *
 
 def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     stack = Stack()
@@ -25,6 +26,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lab = get_const(expr.value, "int")
             lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            
+            
         elif expr.__class__.__name__ == "FloatExpr":
             lab = get_const(expr.value, "float")
             lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
@@ -58,17 +61,52 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append(f"    mov r10, [rbp - {offset}]")
                 lines.append("    mov [rsp], r10")
         elif expr.__class__.__name__ == "CallExpr":
-            func_name = expr.function.name
-            lines.append(f"call _{func_name}")
-            # Check if the return type is float:
-            if isinstance(expr.resolved_type, FloatType):
-                lines.extend(add_rsp(8, "Remove alignment for float call"))
-                lines.extend(["sub rsp, 8", "movsd [rsp], xmm0"])
-            elif isinstance(expr.resolved_type, ArrayType):
-                pass
+            
+
+            # 计算 total_stack 与 return_value_space
+
+            # 1) 计算 total_stack：每个参数占用的空间之和
+            total_stack = sum(get_size(arg.resolved_type) for arg in expr.arguments)
+            if total_stack == 0:
+                total_stack = 8  # 至少分配 8 字节
+
+            # 2) 计算返回值空间（简单类型返回值不用额外空间）
+            if isinstance(expr.resolved_type, (ArrayType, StructType)):
+                return_value_space = get_size(expr.resolved_type)
             else:
-                lines.extend(add_rsp(8, "Remove alignment"))
-                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+                return_value_space = 0
+
+            space_needed = total_stack - return_value_space
+            lines.append(f"; Start of CallExpr with space {space_needed}")
+            # 调用 stack.align 并用 extend 添加生成的指令
+            lines.extend(stack.align(space_needed))
+
+            # 生成实参代码（从右到左）
+            for arg in reversed(expr.arguments):
+                lines.extend(cg_expr(arg, nested=True))
+
+            # 调用函数
+            func_name = expr.function.name  # 假设 function 是 VarExpr
+            lines.append(f"call _{func_name}")
+
+            # # 还原对齐：同样用 extend
+            lines.extend(stack.unalign())
+
+            # # 将返回值 (rax) 压栈
+            lines.extend(stack.push("rax",get_size(expr.resolved_type)))
+
+            lines.append("; End of CallExpr")
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -220,8 +258,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append(f"jne {label_div}")
                     fail_label = get_fail_const()
                     lines.append(f";try insert {get_size(expr)} for {expr.resolved_type} , now {stack.offset}")
-                    lines.extend(stack.align_current())
-                    # lines.extend(stack.align(get_size(expr.resolved_type)))
+                    # lines.extend(stack.align_current())
+                    lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'divide by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack()) 
@@ -239,8 +277,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     jump_counter += 1
                     lines.append(f"jne {label_mod}")
                     fail_label = get_fail_const_mod()
-                    lines.extend(stack.align_current())
-                    # lines.extend(stack.align(get_size(expr.resolved_type)))
+                    # lines.extend(stack.align_current())
+                    lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'mod by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack())
@@ -331,9 +369,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.append("/* unhandled binary operator */")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
-                    
-                    
-                        
+
         elif expr.__class__.__name__ == "ArrayLiteralExpr":
             n = len(expr.elements)
             if isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
@@ -436,6 +472,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
 
         elif isinstance(type_node, (VarExpr)):
             return get_size(type_node.resolved_type)
+        elif isinstance(type_node, (CallExpr)):
+            return get_size(type_node.resolved_type)
+        
         elif isinstance(type_node, (UnopExpr)):
             return 0
         elif isinstance(type_node, (BinopExpr)):
@@ -453,72 +492,40 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         return stack.align(size)
 
     def unalign_stack() -> List[str]:
+        
         return stack.unalign()
-    
     def generate_function(cmd: FnCmd) -> str:
         func_body = []
-        # Record the stack offset after the prologue.
-        ret_type = cmd.return_type
-
-        # For functions returning an array, reserve extra space for the return array pointer.
-        if isinstance(ret_type, ArrayType):
-            prologue = [
-                "    push rbp",
-                "    mov rbp, rsp",
-                "    push rdi  ; reserve space for return array pointer"
-            ]
-        else:
-            prologue = [
-                "    push rbp",
-                "    mov rbp, rsp"
-            ]
+        # 插入入口标签
+        func_body.append(f"{cmd.name}:")
+        func_body.append(f"_{cmd.name}:")
+        
+        # 根据 FnCmd 构造 CallingConvention
+        cc = CallingConvention.from_fncmd(cmd, stack, var_offsets)
+        
+        # 前序部分
+        func_body.extend(cc.generate_prologue())
         initial_offset = stack.offset
+        
+        # 参数分配
+        if cmd.bindings:
+            func_body.extend(cc.allocate_args(cmd))
+        
+        # 函数体（例如，生成返回语句的代码）
         for stmt in cmd.body:
             if isinstance(stmt, ReturnStmt):
-                # We generate code for the return expression.
-                # This branch will be different for array returns.
-                if isinstance(ret_type, ArrayType):
-                    # Generate code that allocates the array and leaves its pointer on the temporary stack.
-                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
-        
-                    # Now, load the preallocated return address from [rbp - 8]
-                    # (because the prologue pushed rdi, so the return slot is at [rbp - 8]).
-                    func_body.append("    mov rax, [rbp - 8]   ; load reserved return address")
-                    func_body.append("    mov r10, [rsp + 8]")
-                    func_body.append("    mov [rax + 8], r10")
-                    func_body.append("    mov r10, [rsp + 0]")
-                    func_body.append("    mov [rax + 0], r10")
-                    # Now, compute the local space used (note that no extra push of the result was done here).
-                    local_space = stack.offset - initial_offset + 8 # subtract the extra 8 for the reserved rdi
-                    func_body.append(f"add rsp, {local_space} ; Local variables")
-                    func_body.append("pop rbp")
-                    func_body.append("ret")
-                elif isinstance(ret_type, FloatType):
-                    # For a float, assume cg_expr pushes the 8-byte result.
-                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
-                    func_body.append("movsd xmm0, [rsp]")
-                    func_body.append("add rsp, 8")
-                    local_space = stack.offset - initial_offset - 8
-                    func_body.append(f"add rsp, {local_space} ; Local variables")
-                    func_body.append("pop rbp")
-                    func_body.append("ret")
-                else:
-                    # For int, bool, etc.
-                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
-                    func_body.append("pop rax")
-                    local_space = stack.offset - initial_offset - 8
-                    func_body.append(f"add rsp, {local_space} ; Local variables")
-                    func_body.append("pop rbp")
-                    func_body.append("ret")
+                expr_lines = cg_expr(stmt.expr, nested=False, with_align=False)
+                func_body.extend(expr_lines)
+                func_body.extend(stack.pop("rax", get_size(stmt.expr.resolved_type)))
             else:
                 func_body.extend(cg_expr(stmt, nested=False, with_align=False))
         
-        prologue_code = "\n".join(prologue)
-        func_code = "\n".join([prologue_code] + ["    " + line for line in func_body])
-        full_func = f"{cmd.name}:\n_{cmd.name}:\n" + func_code
-        return full_func
-    
-
+        # 后序部分：计算局部变量占用并恢复栈帧
+        total_local = stack.offset - initial_offset
+        func_body.append(f"add rsp, {total_local} ; Local variables")
+        # func_body.extend(cc.generate_epilogue())
+        
+        return "\n".join(func_body)
 
     prologue_lines = []
     prologue_lines.extend(stack.push_reg("rbp", 8))
@@ -532,6 +539,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     for cmd in ast_cmds:
         if isinstance(cmd, FnCmd):
             functions.append(generate_function(cmd))
+            
         elif isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value, nested=False, with_align=False)
             var_offsets[cmd.lvalue.name] = next_local_offset
@@ -549,7 +557,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             body_lines.append(";End LetCmd Line\n")
             
         elif isinstance(cmd, ShowCmd):
-            body_lines.append(f";Start ShowCmd {cmd.expr} as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
+            body_lines.append(f"\n    ;Start ShowCmd {cmd.expr} as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
             body_lines.extend(stack.align(get_size(cmd.expr)))
             literal_flag = False
             if isinstance(cmd.expr, VarExpr):

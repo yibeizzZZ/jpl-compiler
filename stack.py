@@ -90,7 +90,7 @@ class Stack:
 
     def pop_reg(self, reg: str, size: int, comment: str = "") -> List[str]:
         new_offset = self.offset - size
-        assert self.contents and self.contents[-1][0] == reg, f"pop_reg mismatch: expected {reg}"
+        assert self.contents and self.contents[-1][0] == reg, f"pop_reg mismatch: expected {reg}, at size {size}"
         self.contents.pop()
         self.offset = new_offset
         comment_str = f" ; {comment}" if comment else ""

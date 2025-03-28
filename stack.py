@@ -11,18 +11,26 @@ class Stack:
         instructions = []
         self.padding_stack.append(leftovers)
         if leftovers > 0:
-            instructions.append(f"sub rsp, {leftovers} ; align stack by {leftovers}, new offset {self.offset + leftovers}")
+            instructions.append(f"sub rsp, {leftovers} ; align stack by {leftovers}, new offset {self.offset + leftovers},now have {self.padding_stack} in align stack")
             self.offset += leftovers
         return instructions
 
     def unalign(self) -> List[str]:
         instructions = []
         if not self.padding_stack:
+            instructions.append(";Nothing in Padding")
             return instructions
-        padding = self.padding_stack.pop()
-        if padding > 0:
-            instructions.append(f"add rsp, {padding} ; remove padding of {padding}, new offset {self.offset - padding}")
-            self.offset -= padding
+        
+        padding = 0
+        while padding == 0:
+            if not self.padding_stack:
+                instructions.append(";Nothing in Padding")
+                return instructions
+            padding = self.padding_stack.pop()
+        
+        instructions.append(f"add rsp, {padding} ; remove padding of {padding}, new offset {self.offset - padding}")
+        self.offset -= padding
+            
         return instructions
 
     def align_current(self) -> List[str]:

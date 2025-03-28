@@ -18,137 +18,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     fail_const = None
     fail_const_mod = None
     literal_flags: Dict[str, bool] = {}
-
-    def get_const(value, kind: str) -> str:
-        nonlocal num_counter
-        key = (kind, value)
-        if key in const_table:
-            return const_table[key]
-        label = f"const{num_counter}"
-        num_counter += 1
-        const_table[key] = label
-        data_lines.append(f"{label}: dq {value}")
-        return label
-
-    def get_fail_const() -> str:
-        nonlocal num_counter, fail_const
-        if fail_const is not None:
-            return fail_const
-        label = f"const{num_counter}"
-        num_counter += 1
-        fail_const = label
-        data_lines.append(f"{label}: db `divide by zero`, 0")
-        return label
-
-    def get_fail_const_mod() -> str:
-        nonlocal num_counter, fail_const_mod
-        if fail_const_mod is not None:
-            return fail_const_mod
-        label = f"const{num_counter}"
-        num_counter += 1
-        fail_const_mod = label
-        data_lines.append(f"{label}: db `mod by zero`, 0")
-        return label
-
-    def get_type_const(type_str: str) -> str:
-        nonlocal num_counter
-        if type_str in type_const_table:
-            return type_const_table[type_str]
-        label = f"const{num_counter}"
-        num_counter += 1
-        type_const_table[type_str] = label
-        data_lines.append(f'{label}: db `{type_str}`, 0')
-        return label
-
-    def sub_rsp(n: int, comment: str = "pop stack") -> List[str]:
-        stack.offset += n
-        return [f"sub rsp, {n} ; {comment} ,new offset {stack.offset}"]
-
-    def add_rsp(n: int, comment: str = "Remove alignment") -> List[str]:
-        stack.offset -= n
-        return [f"add rsp, {n} ; {comment} ,new offset {stack.offset}"]
-
-    def get_size(type_node: TypeNode) -> int:
-        if isinstance(type_node, (IntType, FloatType, BoolType)):
-            return 8
-        elif isinstance(type_node, VoidType):
-            return 0
-        elif isinstance(type_node, (StructType, ArrayType)):
-            return 8
-        elif isinstance(type_node, (StructType, ArrayType)):
-            return 0
-        else:
-            raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
-
-    def align_stack(type_node: TypeNode) -> List[str]:
-        size = get_size(type_node)
-        return stack.align(size)
-
-    def unalign_stack() -> List[str]:
-        return stack.unalign()
-    
-    def generate_function(cmd: FnCmd) -> str:
-        func_body = []
-        # Record the stack offset after the prologue.
-        ret_type = cmd.return_type
-
-        # For functions returning an array, reserve extra space for the return array pointer.
-        if isinstance(ret_type, ArrayType):
-            prologue = [
-                "    push rbp",
-                "    mov rbp, rsp",
-                "    push rdi  ; reserve space for return array pointer"
-            ]
-        else:
-            prologue = [
-                "    push rbp",
-                "    mov rbp, rsp"
-            ]
-        initial_offset = stack.offset
-        for stmt in cmd.body:
-            if isinstance(stmt, ReturnStmt):
-                # We generate code for the return expression.
-                # This branch will be different for array returns.
-                if isinstance(ret_type, ArrayType):
-                    # Generate code that allocates the array and leaves its pointer on the temporary stack.
-                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
-        
-                    # Now, load the preallocated return address from [rbp - 8]
-                    # (because the prologue pushed rdi, so the return slot is at [rbp - 8]).
-                    func_body.append("    mov rax, [rbp - 8]   ; load reserved return address")
-                    func_body.append("    mov r10, [rsp + 8]")
-                    func_body.append("    mov [rax + 8], r10")
-                    func_body.append("    mov r10, [rsp + 0]")
-                    func_body.append("    mov [rax + 0], r10")
-                    # Now, compute the local space used (note that no extra push of the result was done here).
-                    local_space = stack.offset - initial_offset + 8 # subtract the extra 8 for the reserved rdi
-                    func_body.append(f"add rsp, {local_space} ; Local variables")
-                    func_body.append("pop rbp")
-                    func_body.append("ret")
-                elif isinstance(ret_type, FloatType):
-                    # For a float, assume cg_expr pushes the 8-byte result.
-                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
-                    func_body.append("movsd xmm0, [rsp]")
-                    func_body.append("add rsp, 8")
-                    local_space = stack.offset - initial_offset - 8
-                    func_body.append(f"add rsp, {local_space} ; Local variables")
-                    func_body.append("pop rbp")
-                    func_body.append("ret")
-                else:
-                    # For int, bool, etc.
-                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
-                    func_body.append("pop rax")
-                    local_space = stack.offset - initial_offset - 8
-                    func_body.append(f"add rsp, {local_space} ; Local variables")
-                    func_body.append("pop rbp")
-                    func_body.append("ret")
-            else:
-                func_body.extend(cg_expr(stmt, nested=False, with_align=False))
-        
-        prologue_code = "\n".join(prologue)
-        func_code = "\n".join([prologue_code] + ["    " + line for line in func_body])
-        full_func = f"{cmd.name}:\n_{cmd.name}:\n" + func_code
-        return full_func
     
     def cg_expr(expr, nested: bool = False , with_align: bool=False , Var_No_align : bool = False) -> List[str]:
         lines = []
@@ -173,7 +42,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # Check if this variable is a literal array:
             if literal_flags.get(expr.name, False):
                 # Generate the alternative block for literal arrays:
-                new_offset = offset + 8  # for example, extra 8 bytes allocated
+                new_offset = offset + 8  
                 lines.append("; This is from VarExpr (literal array) -------")
                 lines.extend(sub_rsp(16))  # instead of two sub_rsp(8)
                 lines.append(f"    mov r10, [rbp - {new_offset} + 8]")
@@ -216,7 +85,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("neg rax")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
             elif expr.op.value == '!':
-                lines.extend(cg_expr(expr.operand, nested))
+                lines.extend(cg_expr(expr.operand,Var_No_align = True))
                 lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                 lines.append("xor rax, 1")
                 lines.extend(stack.push("rax", get_size(expr.resolved_type)))
@@ -498,21 +367,164 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append("mov rax, 0")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         return lines
+    
+    def get_const(value, kind: str) -> str:
+        nonlocal num_counter
+        key = (kind, value)
+        if key in const_table:
+            return const_table[key]
+        label = f"const{num_counter}"
+        num_counter += 1
+        const_table[key] = label
+        data_lines.append(f"{label}: dq {value}")
+        return label
 
+    def get_fail_const() -> str:
+        nonlocal num_counter, fail_const
+        if fail_const is not None:
+            return fail_const
+        label = f"const{num_counter}"
+        num_counter += 1
+        fail_const = label
+        data_lines.append(f"{label}: db `divide by zero`, 0")
+        return label
+
+    def get_fail_const_mod() -> str:
+        nonlocal num_counter, fail_const_mod
+        if fail_const_mod is not None:
+            return fail_const_mod
+        label = f"const{num_counter}"
+        num_counter += 1
+        fail_const_mod = label
+        data_lines.append(f"{label}: db `mod by zero`, 0")
+        return label
+
+    def get_type_const(type_str: str) -> str:
+        nonlocal num_counter
+        if type_str in type_const_table:
+            return type_const_table[type_str]
+        label = f"const{num_counter}"
+        num_counter += 1
+        type_const_table[type_str] = label
+        data_lines.append(f'{label}: db `{type_str}`, 0')
+        return label
+
+    def sub_rsp(n: int, comment: str = "pop stack") -> List[str]:
+        if n == 0:
+            return
+        stack.offset += n
+        return [f"sub rsp, {n} ; {comment} ,new offset {stack.offset}"]
+
+    def add_rsp(n: int, comment: str = "Remove alignment") -> List[str]:
+        if n == 0:
+            return
+        stack.offset -= n
+        return [f"add rsp, {n} ; {comment} ,new offset {stack.offset}"]
+    
+
+                            
+    def get_size(type_node: TypeNode) -> int:
+        if isinstance(type_node, (IntType, FloatType, BoolType, StructType, ArrayType)):
+            return 8
+        elif isinstance(type_node, (VoidType, IntExpr,FloatExpr,TrueExpr,FalseExpr,ArrayLiteralExpr)):
+            return 0
+        elif isinstance(type_node, (VarExpr)):
+            return get_size(type_node.resolved_type)
+        elif isinstance(type_node, (UnopExpr)):
+            if isinstance(type_node.operand,VarExpr):
+                return get_size(type_node.resolved_type)
+            else:
+                return 0
+        elif isinstance(type_node, (BinopExpr )):
+            left = get_size(type_node.left)
+            right = get_size(type_node.right)
+            return left + right
+        else:
+            raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
+
+    def align_stack(type_node: TypeNode) -> List[str]:
+        size = get_size(type_node)
+        return stack.align(size)
+
+    def unalign_stack() -> List[str]:
+        return stack.unalign()
+    
+    def generate_function(cmd: FnCmd) -> str:
+        func_body = []
+        # Record the stack offset after the prologue.
+        ret_type = cmd.return_type
+
+        # For functions returning an array, reserve extra space for the return array pointer.
+        if isinstance(ret_type, ArrayType):
+            prologue = [
+                "    push rbp",
+                "    mov rbp, rsp",
+                "    push rdi  ; reserve space for return array pointer"
+            ]
+        else:
+            prologue = [
+                "    push rbp",
+                "    mov rbp, rsp"
+            ]
+        initial_offset = stack.offset
+        for stmt in cmd.body:
+            if isinstance(stmt, ReturnStmt):
+                # We generate code for the return expression.
+                # This branch will be different for array returns.
+                if isinstance(ret_type, ArrayType):
+                    # Generate code that allocates the array and leaves its pointer on the temporary stack.
+                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
+        
+                    # Now, load the preallocated return address from [rbp - 8]
+                    # (because the prologue pushed rdi, so the return slot is at [rbp - 8]).
+                    func_body.append("    mov rax, [rbp - 8]   ; load reserved return address")
+                    func_body.append("    mov r10, [rsp + 8]")
+                    func_body.append("    mov [rax + 8], r10")
+                    func_body.append("    mov r10, [rsp + 0]")
+                    func_body.append("    mov [rax + 0], r10")
+                    # Now, compute the local space used (note that no extra push of the result was done here).
+                    local_space = stack.offset - initial_offset + 8 # subtract the extra 8 for the reserved rdi
+                    func_body.append(f"add rsp, {local_space} ; Local variables")
+                    func_body.append("pop rbp")
+                    func_body.append("ret")
+                elif isinstance(ret_type, FloatType):
+                    # For a float, assume cg_expr pushes the 8-byte result.
+                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
+                    func_body.append("movsd xmm0, [rsp]")
+                    func_body.append("add rsp, 8")
+                    local_space = stack.offset - initial_offset - 8
+                    func_body.append(f"add rsp, {local_space} ; Local variables")
+                    func_body.append("pop rbp")
+                    func_body.append("ret")
+                else:
+                    # For int, bool, etc.
+                    func_body.extend(cg_expr(stmt.expr, nested=False, with_align=False))
+                    func_body.append("pop rax")
+                    local_space = stack.offset - initial_offset - 8
+                    func_body.append(f"add rsp, {local_space} ; Local variables")
+                    func_body.append("pop rbp")
+                    func_body.append("ret")
+            else:
+                func_body.extend(cg_expr(stmt, nested=False, with_align=False))
+        
+        prologue_code = "\n".join(prologue)
+        func_code = "\n".join([prologue_code] + ["    " + line for line in func_body])
+        full_func = f"{cmd.name}:\n_{cmd.name}:\n" + func_code
+        return full_func
+    
 
 
     prologue_lines = []
     prologue_lines.extend(stack.push_reg("rbp", 8))
     prologue_lines.append("mov rbp, rsp")
     prologue_lines.extend(stack.push_reg("r12", 8))
-    prologue_lines.append("mov r12, rbp ; end of jpl_main prelude")
+    prologue_lines.append("mov r12, rbp ; end of jpl_main prelude\n")
     
     epilogue_lines = []
     
     body_lines = []
     for cmd in ast_cmds:
         if isinstance(cmd, FnCmd):
-            # Use our helper to generate function definitions.
             functions.append(generate_function(cmd))
         elif isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value, nested=False , with_align=False)
@@ -527,22 +539,18 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             body_lines.append(";End LetCmd Line")
             
         elif isinstance(cmd, ShowCmd):
-            body_lines.append(f";Start ShowCmd {cmd.expr.resolved_type}")
-            body_lines.extend(align_stack(cmd.expr.resolved_type))
+            body_lines.append(f";Start ShowCmd {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr.resolved_type)}")
+            body_lines.extend(align_stack(cmd.expr))
             literal_flag = False
-            # Check if the expression is a VarExpr (for literal arrays)…
             if isinstance(cmd.expr, VarExpr):
                 literal_flag = literal_flags.get(cmd.expr.name, False)
-            # Now, if the expression is an ArrayLiteralExpr, generate it normally.
             if isinstance(cmd.expr, ArrayLiteralExpr):
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=True))
-            # Else, if it is a CallExpr returning an array, handle it via cg_expr.
             elif isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.extend(sub_rsp(8))
                 body_lines.extend(sub_rsp(16))
                 body_lines.append("lea rdi, [rsp]")
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
-            # Otherwise, if it is an array variable (or something else with an ArrayType)
             elif isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.append("; [ShowCmd] array-var path")
                 body_lines.extend(sub_rsp(8))

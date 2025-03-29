@@ -56,10 +56,15 @@ _jpl_main:
     push rax; new offset: 16
     mov rax, 2
     push rax; new offset: 24
+    ;;              after_exprArrayLValue(start_idx=4, array='arr', indices=['num']), checkTrue, checkFalse
+
+    ;;                                   ADDING LE
     ;End LetCmd Line
 
     mov rax, [rel const2] ; 4
     push rax ;  actually 8 bytes, new offset: 32
+    ;;              after_exprVarLValue(start_idx=26, name='d'), checkFalse, checkFalse
+
     ;End LetCmd Line
 
     
@@ -67,9 +72,7 @@ _jpl_main:
     sub rsp, 8 ; align stack by 8, new offset 40,now have [8] in align stack
     ; VarExpr => local or global
     sub rsp, 8 ; pop stack ,new offset 48
-    {'arr': 16, 'num': 24, 'd': 40}
-    mov r10, [rbp - 24 + 0]
-    mov [rsp+ 0], r10
+    {'arr': 16, 'd': 32}
     lea rdi, [rel const3]
     lea rsi, [rsp]
     call _show
@@ -82,8 +85,8 @@ _jpl_main:
     sub rsp, 8 ; align stack by 8, new offset 40,now have [8] in align stack
     ; VarExpr => local or global
     sub rsp, 8 ; pop stack ,new offset 48
-    {'arr': 16, 'num': 24, 'd': 40}
-    mov r10, [rbp - 40 + 0]
+    {'arr': 16, 'd': 32}
+    mov r10, [rbp - 32 + 0]
     mov [rsp+ 0], r10
     lea rdi, [rel const3]
     lea rsi, [rsp]

@@ -44,7 +44,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append("; VarExpr => local or global")
             lines.extend(sub_rsp(get_size(expr.resolved_type)))
             offset = get_size(expr.resolved_type) - 8
-            lines.append(f"{var_offsets}")
+            lines.append(f";{var_offsets}")
             if expr.name in var_offsets:
                 while offset >= 0:
                     start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
@@ -564,17 +564,23 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             
         elif isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value,)
+            
             var_offsets[cmd.lvalue.name] = next_local_offset
+            lines.append(f";;              after_expr{cmd.lvalue}, check{isinstance(cmd.lvalue, ArrayLValue)}, check{isinstance(cmd.lvalue, ArrayLiteralExpr)}\n")
             next_local_offset += 8
             if isinstance(cmd.lvalue, ArrayLValue):
                 for idx in cmd.lvalue.indices:
                     var_offsets[idx] = next_local_offset
                     next_local_offset += 8
-            if isinstance(cmd.value, ArrayLiteralExpr):
+
+            elif isinstance(cmd.value, ArrayLiteralExpr):
                 literal_flags[cmd.lvalue.name] = True
                 next_local_offset += 8  
+
             else:
                 literal_flags[cmd.lvalue.name] = False
+                
+                
             body_lines.extend(lines)
             body_lines.append(";End LetCmd Line\n")
             

@@ -41,21 +41,22 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"mov rax, [rel {lab}] ; false")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
-            offset = var_offsets[expr.name]
-            if literal_flags.get(expr.name, False):
-                new_offset = offset + 8 
-                lines.append("; This is from VarExpr (literal array) -------")
-                lines.extend(sub_rsp(16))  # instead of two sub_rsp(8)
-                lines.append(f"    mov r10, [rbp - {new_offset} + 8]")
-                lines.append("    mov [rsp + 8], r10")
-                lines.append(f"    mov r10, [rbp - {new_offset} + 0]")
-                lines.append("    mov [rsp + 0], r10")
+            lines.append("; VarExpr => local or global")
+            lines.extend(sub_rsp(get_size(expr.resolved_type)))
+            offset = get_size(expr.resolved_type) - 8
+            if expr.name in var_offsets:
+                now_place = var_offsets[expr.name]
+                while offset >= 0:
+                    start = f"rbp - {now_place}"
+                    lines.append(f"mov r10, [{start} + {offset}]")
+                    lines.append(f"mov [rsp+ {offset}], r10")
+                    offset -= 8
+                    now_place -= 8
             else:
-                lines.append("; This is from VarExpr -------")
-                lines.append(f"; {var_offsets}")
-                lines.extend(sub_rsp(get_size(expr.resolved_type)))
-                lines.append(f"    mov r10, [rbp - {offset}]")
-                lines.append("    mov [rsp], r10")
+                start = "start"
+
+            
+
                 
 
         elif expr.__class__.__name__ == "CallExpr":
@@ -476,25 +477,20 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         else:
             return get_size(type_node.resolved_type)
         
-        # elif isinstance(type_node, (UnopExpr)):
-        #     return 0
-        # elif isinstance(type_node, (BinopExpr)):
-            
-        #     left = get_size(type_node.left)
-        #     right = get_size(type_node.right)
-        #     return left + right
-        
-
-        # else:
-        #     raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
-
-    def align_stack(type_node: TypeNode) -> List[str]:
-        size = get_size(type_node)
-        return stack.align(size)
-
     def unalign_stack() -> List[str]:
         
         return stack.unalign()
+    
+    def calculate_total_size(array_expr: ArrayLiteralExpr) -> int:
+        n = len(array_expr.elements)
+        if isinstance(array_expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
+            items_per_elem = 1
+        else:
+            items_per_elem = 2
+        stack_items = n * items_per_elem
+        elem_size = 8
+        total_size = stack_items * elem_size
+        return total_size
     
     def pop_float_from_stack(reg: str, type_node: TypeNode) -> List[str]:
         size = get_size(type_node)
@@ -588,12 +584,14 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             
             literal_flag = False
             if isinstance(cmd.expr, VarExpr):
-                literal_flag = literal_flags.get(cmd.expr.name, False)
-            elif isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
+                literal_flag = literal_flags.get(cmd.expr.name)
+                
+            if isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.extend(sub_rsp(8))
                 body_lines.extend(sub_rsp(16))
                 body_lines.append("lea rdi, [rsp]")
                 body_lines.extend(cg_expr(cmd.expr))
+
             else:
                 body_lines.extend(cg_expr(cmd.expr))
             

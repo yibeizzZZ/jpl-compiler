@@ -1,763 +1,87 @@
-make -C ./grader DIR=/root/CS4470HWs PART=2 test-hw11
-make[1]: Entering directory '/root/CS4470HWs/grader'
-Homework 11 part 2 ...W
-004.jpl: 8 lines differ
-======= Standard Out: =======
-*** 004.jpl.expected
---- Your compiler
-***************
-*** 56,62 ****
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 24 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 56,62 ----
-  mov [rax + 8], r10
-  mov r10, [rsp] ; get composite part (e.g., pointer)
-  mov [rax], r10
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 66,79 ****
---- 66,85 ----
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-  sub rsp, 8 ; align stack by 8, new offset 48,now have [8] in align stack
-+ sub rsp, 8 ; pop stack ,new offset 56
-  sub rsp, 16 ; pop stack ,new offset 72
-  lea rdi, [rsp]
-+ sub rsp, 8 ; align *current* stack by 8, new offset 80
-  call _f
-+ add rsp, 8 ; remove padding of 8, new offset 72, now have [8]
-+ sub rsp, 16 ; reserve 16 bytes (with 0 bytes padding), new offset: 88
-+ mov [rsp], rax ; store rax at offset 0
-  lea rdi, [rel const3]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 16 ; push stack ,new offset 72
-  add rsp, 8 ; remove padding of 8, new offset 64, now have []
-+ add rsp, 56 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
+global jpl_main
+global _jpl_main
+extern _fail_assertion
+extern _jpl_alloc
+extern _get_time
+extern _show
+extern _print
+extern _print_time
+extern _read_image
+extern _write_image
+extern _fmod
+extern _sqrt
+extern _exp
+extern _sin
+extern _cos
+extern _tan
+extern _asin
+extern _acos
+extern _atan
+extern _log
+extern _pow
+extern _atan2
+extern _to_int
+extern _to_float
 
-=======================
-W
-005.jpl: 8 lines differ
-======= Standard Out: =======
-*** 005.jpl.expected
---- Your compiler
-***************
-*** 53,59 ****
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 24 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 53,59 ----
-  mov [rax + 8], r10
-  mov r10, [rsp] ; get composite part (e.g., pointer)
-  mov [rax], r10
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 63,76 ****
---- 63,82 ----
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-  sub rsp, 8 ; align stack by 8, new offset 48,now have [8] in align stack
-+ sub rsp, 8 ; pop stack ,new offset 56
-  sub rsp, 16 ; pop stack ,new offset 72
-  lea rdi, [rsp]
-+ sub rsp, 8 ; align *current* stack by 8, new offset 80
-  call _f
-+ add rsp, 8 ; remove padding of 8, new offset 72, now have [8]
-+ sub rsp, 16 ; reserve 16 bytes (with 0 bytes padding), new offset: 88
-+ mov [rsp], rax ; store rax at offset 0
-  lea rdi, [rel const2]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 16 ; push stack ,new offset 72
-  add rsp, 8 ; remove padding of 8, new offset 64, now have []
-+ add rsp, 56 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
+section .data
+  const0: dq 3
+  const1: dq 2
+  const2: dq 1
+  const3: db `(ArrayType (IntType) 1)`, 0
 
-=======================
-W
-006.jpl: 8 lines differ
-======= Standard Out: =======
-*** 006.jpl.expected
---- Your compiler
-***************
-*** 53,59 ****
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 24 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 53,59 ----
-  mov [rax + 8], r10
-  mov r10, [rsp] ; get composite part (e.g., pointer)
-  mov [rax], r10
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 63,76 ****
---- 63,82 ----
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-  sub rsp, 8 ; align stack by 8, new offset 48,now have [8] in align stack
-+ sub rsp, 8 ; pop stack ,new offset 56
-  sub rsp, 16 ; pop stack ,new offset 72
-  lea rdi, [rsp]
-+ sub rsp, 8 ; align *current* stack by 8, new offset 80
-  call _f
-+ add rsp, 8 ; remove padding of 8, new offset 72, now have [8]
-+ sub rsp, 16 ; reserve 16 bytes (with 0 bytes padding), new offset: 88
-+ mov [rsp], rax ; store rax at offset 0
-  lea rdi, [rel const2]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 16 ; push stack ,new offset 72
-  add rsp, 8 ; remove padding of 8, new offset 64, now have []
-+ add rsp, 56 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-W
-007.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
+section .text
 
 
-=======================
-W
-008.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
+jpl_main:
+_jpl_main:
+    push rbp
+    mov rbp, rsp
+    push r12
+    mov r12, rbp ; end of jpl_main prelude
 
+    mov rax, [rel const0] ; 3
+    push rax ;  actually 8 bytes, new offset: 16
+    mov rax, [rel const1] ; 2
+    push rax ;  actually 8 bytes, new offset: 24
+    mov rax, [rel const2] ; 1
+    push rax ;  actually 8 bytes, new offset: 32
+    mov rdi, 24   ; total size to allocate
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    call _jpl_alloc ;
+    ; NOTICE! Here REMOVE a 0 padding, now have[]
+    ; Moving 24 bytes from rsp to rax
+        mov r10, [rsp + 16]
+        mov [rax + 16], r10
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 24 ;  ,new offset 8
+    push rax; new offset: 16
+    mov rax, 3
+    push rax; new offset: 24
+    ;End LetCmd Line
 
-=======================
-W
-009.jpl: 6 lines differ
-======= Standard Out: =======
-*** 009.jpl.expected
---- Your compiler
-***************
-*** 31,41 ****
-  _f:
-  push rbp
-  mov rbp, rsp
-! push rdi
-  mov rax, [rel const0] ; 1
-  push rax
-  pop rax
-! add rsp, 8 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 31,41 ----
-  _f:
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-! mov [rbp - 16], rdi ; int/bool param
-  mov rax, [rel const0] ; 1
-  push rax ;  actually 8 bytes, new offset: 24
-  pop rax ; rax, actually 8 bytes, new offset: 16
-! add rsp, 0 ; Local variables
-  pop rbp ; new offset: 8
-  ret
-  jpl_main:
-***************
-*** 47,53 ****
-  sub rsp, 8 ; Add alignment
-  mov rax, [rel const1] ; 2
-  push rax
-- pop rdi
-  call _f
-  add rsp, 8 ; Remove alignment
-  push rax
---- 47,52 ----
-***************
-*** 55,60 ****
---- 54,60 ----
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8 ; push stack ,new offset 16
-+ add rsp, 8 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
+    
+    ;Start ShowCmd VarExpr(start_idx=23, name='a') as ArrayType(start_idx=10, element_type=IntType(start_idx=9), dimension=1) ,NEED 16
+    sub rsp, 8 ; align stack by 8, new offset 32,now have [8] in align stack
+    ; [ShowCmd] array-var path
+    sub rsp, 16 ; pop stack ,new offset 48
+    ; Moving 16 bytes from rbp - 24 to rsp
+         mov r10, [rbp - 24 + 8]
+         mov [rsp + 8], r10
+         mov r10, [rbp - 24 + 0]
+         mov [rsp + 0], r10
+    lea rdi, [rel const3]
+    lea rsi, [rsp]
+    call _show
+    add rsp, 16 ; push stack ,new offset 32
+    add rsp, 8 ; remove padding of 8, new offset 24, now have []
+    ;End of ShowCmd 
 
-=======================
-W
-010.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-011.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-012.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-013.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-014.jpl: 8 lines differ
-======= Standard Out: =======
-*** 014.jpl.expected
---- Your compiler
-***************
-*** 31,42 ****
-  _f:
-  push rbp
-  mov rbp, rsp
-! sub rsp, 8
-! movsd [rsp], xmm0
-  mov rax, [rel const0] ; 444
-  push rax
-  pop rax
-! add rsp, 8 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 31,41 ----
-  _f:
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-! movsd [rbp - 16], xmm0 ; float param
-  mov rax, [rel const0] ; 444
-  push rax ;  actually 8 bytes, new offset: 24
-  pop rax ; rax, actually 8 bytes, new offset: 16
-! add rsp, 0 ; Local variables
-  pop rbp ; new offset: 8
-  ret
-  jpl_main:
-***************
-*** 48,55 ****
-  sub rsp, 8 ; Add alignment
-  mov rax, [rel const1] ; 1.0
-  push rax
-- movsd xmm0, [rsp]
-- add rsp, 8
-  call _f
-  add rsp, 8 ; Remove alignment
-  push rax
---- 47,52 ----
-***************
-*** 57,62 ****
---- 54,60 ----
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8 ; push stack ,new offset 16
-+ add rsp, 8 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-W
-015.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-016.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-017.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-018.jpl: 13 lines differ
-======= Standard Out: =======
-*** 018.jpl.expected
---- Your compiler
-***************
-*** 32,44 ****
-  _f:
-  push rbp
-  mov rbp, rsp
-! sub rsp, 8
-! movsd [rsp], xmm0
-! push rdi
-  mov rax, [rel const0] ; 2.0
-  push rax
-  sub rsp, 8
-! mov r10, [rbp - 8]
-  mov [rsp], r10
-  movsd xmm0, [rsp]
-  add rsp, 8
---- 32,43 ----
-  _f:
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-! movsd [rbp - 16], xmm0 ; float param
-! mov [rbp - 24], rdi ; int/bool param
-  mov rax, [rel const0] ; 2.0
-  push rax ;  actually 8 bytes, new offset: 24
-  sub rsp, 8 ; pop stack ,new offset 32
-! mov r10, [rbp - 16]
-  mov [rsp], r10
-  movsd xmm0, [rsp]
-  add rsp, 8 ;  ,new offset 24
-***************
-*** 49,55 ****
-  movsd [rsp], xmm0
-  movsd xmm0, [rsp]
-  add rsp, 8
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 48,54 ----
-  movsd [rsp], xmm0 ; xxx
-  movsd xmm0, [rsp]
-  add rsp, 8
-! add rsp, 0 ; Local variables
-  pop rbp ; new offset: 8
-  ret
-  jpl_main:
-***************
-*** 63,71 ****
-  push rax
-  mov rax, [rel const2] ; 1.0
-  push rax
-- movsd xmm0, [rsp]
-- add rsp, 8
-- pop rdi
-  call _f
-  add rsp, 8 ; Remove alignment
-  sub rsp, 8
---- 62,67 ----
-***************
-*** 74,79 ****
---- 70,76 ----
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8 ; push stack ,new offset 16
-+ add rsp, 8 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-W
-019.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-020.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-021.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-022.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-023.jpl: 16 lines differ
-======= Standard Out: =======
-*** 023.jpl.expected
---- Your compiler
-***************
-*** 31,47 ****
-  push rbp
-  mov rbp, rsp
-  push rdi
-  sub rsp, 16
-! mov r10, [rbp + 24]
-! mov [rsp + 8], r10
-! mov r10, [rbp + 16]
-  mov [rsp], r10
-  mov rax, [rbp - 8] ; Address to write return value into
-  mov r10, [rsp + 8]
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 24 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 31,46 ----
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-  push rdi ; Save hidden return pointer; new offset: 24
-+ mov [rbp - 16], rdi ; struct/array pointer param?
-  sub rsp, 16 ; pop stack ,new offset 40
-! mov r10, [rbp - 16]
-  mov [rsp], r10
-  mov rax, [rbp - 8] ; Address to write return value into
-  mov r10, [rsp + 8] ; get composite part (e.g., length)
-  mov [rax + 8], r10
-  mov r10, [rsp] ; get composite part (e.g., pointer)
-  mov [rax], r10
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 51,57 ****
---- 50,59 ----
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-  sub rsp, 8 ; align stack by 8, new offset 48,now have [8] in align stack
-+ sub rsp, 8 ; pop stack ,new offset 56
-  sub rsp, 16 ; pop stack ,new offset 72
-+ lea rdi, [rsp]
-+ sub rsp, 8 ; align *current* stack by 8, new offset 80
-  mov rax, [rel const0] ; 1111
-  push rax ;  actually 8 bytes, new offset: 88
-  mov rdi, 8 ; total size to allocate
-***************
-*** 64,77 ****
-  push rax
-  mov rax, 1
-  push rax
-- lea rdi, [rsp + 16]
-  call _f
-! add rsp, 16
-  lea rdi, [rel const1] ; '(ArrayType (IntType) 1)'
-  lea rsi, [rsp]
-  call _show
-  add rsp, 16
-  add rsp, 8 ; Remove alignment
-  pop r12 ; begin jpl_main postlude
-  pop rbp
-  ret
---- 66,81 ----
-  push rax ; new offset: 88
-  mov rax, 1
-  push rax ; new offset: 96
-  call _f
-! add rsp, 8 ; remove padding of 8, new offset 88, now have [8]
-! sub rsp, 16 ; reserve 16 bytes (with 0 bytes padding), new offset: 104
-! mov [rsp], rax ; store rax at offset 0
-  lea rdi, [rel const1]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 16 ; push stack ,new offset 88
-  add rsp, 8 ; remove padding of 8, new offset 80, now have []
-+ add rsp, 72 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-W
-024.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-025.jpl: 7 lines differ
-======= Standard Out: =======
-*** 025.jpl.expected
---- Your compiler
-***************
-*** 32,37 ****
---- 32,40 ----
-  _f:
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-+ mov [rbp - 16], rdi ; struct/array pointer param?
-+ mov [rbp - 24], rsi ; struct/array pointer param?
-+ mov [rbp - 32], rdx ; struct/array pointer param?
-  mov rax, [rel const0] ; 4
-  push rax ;  actually 8 bytes, new offset: 24
-  pop rax ; rax, actually 8 bytes, new offset: 16
-***************
-*** 82,96 ****
-  mov rax, 1
-  push rax
-  call _f
-- add rsp, 16
-- add rsp, 16
-- add rsp, 16
-  add rsp, 8 ; Remove alignment
-  push rax
-  lea rdi, [rel const3] ; '(IntType)'
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8
-  pop r12 ; begin jpl_main postlude
-  pop rbp
-  ret
---- 85,97 ----
-  mov rax, 1
-  push rax ; new offset: 64
-  call _f
-  add rsp, 8 ; remove padding of 8, new offset 56, now have [0]
-  push rax ;  actually 8 bytes, new offset: 64
-  lea rdi, [rel const3]
-  lea rsi, [rsp]
-  call _show
-  add rsp, 8 ; push stack ,new offset 56
-+ add rsp, 48 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-W
-026.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-027.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-028.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-029.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-030.jpl: 14 lines differ
-======= Standard Out: =======
-*** 030.jpl.expected
---- Your compiler
-***************
-*** 29,49 ****
-  push rbp
-  mov rbp, rsp
-  push rdi
-! sub rsp, 24
-! mov r10, [rbp + 32]
-! mov [rsp + 16], r10
-! mov r10, [rbp + 24]
-! mov [rsp + 8], r10
-! mov r10, [rbp + 16]
-  mov [rsp], r10
-  mov rax, [rbp - 8] ; Address to write return value into
-- mov r10, [rsp + 16]
-- mov [rax + 16], r10
-  mov r10, [rsp + 8]
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 32 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 29,44 ----
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-  push rdi ; Save hidden return pointer; new offset: 24
-! mov [rbp - 16], rdi ; struct/array pointer param?
-! sub rsp, 16 ; pop stack ,new offset 40
-! mov r10, [rbp - 16]
-  mov [rsp], r10
-  mov rax, [rbp - 8] ; Address to write return value into
-  mov r10, [rsp + 8] ; get composite part (e.g., length)
-  mov [rax + 8], r10
-  mov r10, [rsp] ; get composite part (e.g., pointer)
-  mov [rax], r10
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 52,57 ****
---- 47,53 ----
-  mov rbp, rsp
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-+ add rsp, 32 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-  ret
-
-=======================
-W
-031.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-032.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-033.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-034.jpl: File should have been accepted
-======= Standard Error: =======
-make[2]: *** [Makefile:15: run] Error 1
-
-
-=======================
-W
-035.jpl: 28 lines differ
-======= Standard Out: =======
-*** 035.jpl.expected
---- Your compiler
-***************
-*** 30,54 ****
-  push rbp
-  mov rbp, rsp
-  push rdi
-! sub rsp, 56
-! lea rdi, [rsp]
-  call _f
-  mov rax, [rbp - 8] ; Address to write return value into
-- mov r10, [rsp + 48]
-- mov [rax + 48], r10
-- mov r10, [rsp + 40]
-- mov [rax + 40], r10
-- mov r10, [rsp + 32]
-- mov [rax + 32], r10
-- mov r10, [rsp + 24]
-- mov [rax + 24], r10
-- mov r10, [rsp + 16]
-- mov [rax + 16], r10
-  mov r10, [rsp + 8]
-  mov [rax + 8], r10
-  mov r10, [rsp]
-  mov [rax], r10
-! add rsp, 64 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
---- 30,46 ----
-  push rbp ; Save old rbp; new offset: 16
-  mov rbp, rsp
-  push rdi ; Save hidden return pointer; new offset: 24
-! sub rsp, 8 ; align *current* stack by 8, new offset 32
-  call _f
-+ add rsp, 8 ; remove padding of 8, new offset 24, now have []
-+ sub rsp, 16 ; reserve 16 bytes (with 0 bytes padding), new offset: 40
-+ mov [rsp], rax ; store rax at offset 0
-  mov rax, [rbp - 8] ; Address to write return value into
-  mov r10, [rsp + 8] ; get composite part (e.g., length)
-  mov [rax + 8], r10
-  mov r10, [rsp] ; get composite part (e.g., pointer)
-  mov [rax], r10
-! add rsp, 16 ; Local variables
-  pop rbp
-  ret
-  jpl_main:
-***************
-*** 57,68 ****
-  mov rbp, rsp
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-! sub rsp, 56
-  lea rdi, [rsp]
-  call _f
-  lea rdi, [rel const0] ; '(ArrayType (IntType) 6)'
-  lea rsi, [rsp]
-  call _show
-  add rsp, 56
-  pop r12 ; begin jpl_main postlude
-  pop rbp
---- 49,68 ----
-  mov rbp, rsp
-  push r12
-  mov r12, rbp ; end of jpl_main prelude
-! sub rsp, 8 ; align stack by 8, new offset 48,now have [8] in align stack
-! sub rsp, 8 ; pop stack ,new offset 56
-! sub rsp, 16 ; pop stack ,new offset 72
-  lea rdi, [rsp]
-+ sub rsp, 8 ; align *current* stack by 8, new offset 80
-  call _f
-+ add rsp, 8 ; remove padding of 8, new offset 72, now have [8]
-+ sub rsp, 16 ; reserve 16 bytes (with 0 bytes padding), new offset: 88
-+ mov [rsp], rax ; store rax at offset 0
-  lea rdi, [rel const0]
-  lea rsi, [rsp]
-  call _show
-+ add rsp, 16 ; push stack ,new offset 72
-+ add rsp, 8 ; remove padding of 8, new offset 64, now have []
-  add rsp, 56 ; Local variables ,new offset 8
-  pop r12
-  pop rbp
-
-=======================
-
-Passed 3/35 = 8.6% tests
-make[1]: Leaving directory '/root/CS4470HWs/grader'
+    add rsp, 16 ; Local variables ,new offset 8
+    pop r12
+    pop rbp
+    ret
+ 
+Compilation succeeded

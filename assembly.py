@@ -42,9 +42,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
             offset = var_offsets[expr.name]
-            # Check if this variable is a literal array:
             if literal_flags.get(expr.name, False):
-                # Generate the alternative block for literal arrays:
                 new_offset = offset + get_size(expr)  
                 lines.append("; This is from VarExpr (literal array) -------")
                 lines.extend(sub_rsp(16))  # instead of two sub_rsp(8)
@@ -54,9 +52,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append("    mov [rsp + 0], r10")
             else:
                 lines.append("; This is from VarExpr -------")
-                # lines.extend(align_stack(expr.resolved_type))
-                # if not Var_No_align:
-                #     lines.extend(stack.align_current())
                 lines.extend(sub_rsp(get_size(expr.resolved_type)))
                 lines.append(f"    mov r10, [rbp - {offset}]")
                 lines.append("    mov [rsp], r10")
@@ -255,8 +250,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     fail_label = get_fail_const()
 
                     lines.extend(stack.align_current())
-                    # lines.append(f";try insert {get_size(expr)} for {expr.resolved_type} , now {stack.offset}")
-                    # lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'divide by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack()) 
@@ -265,7 +258,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("idiv r10")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '%':
-                    # Need to align before cg_expr
                     lines.append(";;;Start mod")
                     lines.extend(cg_expr(expr.right, nested))
                     lines.extend(cg_expr(expr.left,Var_No_align = True))
@@ -277,7 +269,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append(f"jne {label_mod}")
                     fail_label = get_fail_const_mod()
                     lines.extend(stack.align_current())
-                    # lines.extend(stack.align(get_size(expr.resolved_type)))
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'mod by zero'")
                     lines.append("call _fail_assertion")
                     lines.extend(unalign_stack())
@@ -563,7 +554,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             functions.append(generate_function(cmd))
             
         elif isinstance(cmd, LetCmd):
-            lines = cg_expr(cmd.value, nested=False, with_align=False)
+            lines = cg_expr(cmd.value,)
             var_offsets[cmd.lvalue.name] = next_local_offset
             next_local_offset += 8
             if isinstance(cmd.lvalue, ArrayLValue):
@@ -594,7 +585,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 body_lines.extend(cg_expr(cmd.expr, nested=False, with_align=False))
             elif isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.append("; [ShowCmd] array-var path")
-                body_lines.extend(stack.align(get_size(cmd.expr.resolved_type)))
                 body_lines.extend(sub_rsp(16))
                 body_lines.append("; Moving 16 bytes from rbp - 24 to rsp")
                 body_lines.append("     mov r10, [rbp - 24 + 8]")

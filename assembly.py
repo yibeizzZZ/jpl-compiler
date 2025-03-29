@@ -3,7 +3,7 @@ from parser import *
 from typechecker import typecheck_program
 from stack import Stack  
 from callingConvention import *
-
+from dataclasses import asdict
 def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     stack = Stack()
     var_offsets: Dict[str,int] = {}
@@ -237,6 +237,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(sub_rsp(8, ""))
                     lines.append("movsd [rsp], xmm0 ; xxx")
             else:
+                if expr_equal(expr.right , expr.left):
+                    stack.push("", 8)
+                    stack.offset-=8
+                
                 if expr.op.value == '/':
                     nonlocal jump_counter
                     lines.extend(cg_expr(expr.right))
@@ -289,6 +293,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 elif expr.op.value == '!=':
                     lines.extend(cg_expr(expr.right))
                     lines.extend(cg_expr(expr.left,Var_No_align = True))
+                    lines.append(f"{stack}")
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp rax, r10")
@@ -436,7 +441,17 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         type_const_table[type_str] = label
         data_lines.append(f'{label}: db `{type_str}`, 0')
         return label
-
+    
+    def expr_equal(e1, e2) -> bool:
+        if type(e1) != type(e2):
+            return False
+        d1 = asdict(e1)
+        d2 = asdict(e2)
+        d1.pop("start_idx", None)
+        d2.pop("start_idx", None)
+        d1.pop("resolved_type", None)
+        d2.pop("resolved_type", None)   
+        return d1 == d2
     def sub_rsp(n: int, comment: str = "pop stack") -> List[str]:
         if n == 0:
             return
@@ -525,14 +540,11 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             else:
                 func_body.extend(cg_expr(stmt, nested=False, with_align=False))
         
-        # 后序部分：计算局部变量占用并恢复栈帧
         total_local = stack.offset - initial_offset
         func_body.append(f"add rsp, {total_local} ; Local variables")
-        # func_body.extend(cc.generate_epilogue())
         
         if isinstance(cmd.return_type, ArrayType):
             func_body.append("pop rbp")
-            # func_body.extend(stack.pop_reg("rbp", 8))
             pass
         else:
             func_body.extend(stack.pop_reg("rbp", 8))
@@ -608,7 +620,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             
     total_local = stack.offset  - 8
     if total_local > 0:
-        
         epilogue_lines.extend(add_rsp(total_local ,"Local variables"))
     epilogue_lines.append("pop r12")
     epilogue_lines.append("pop rbp")

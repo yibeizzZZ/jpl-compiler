@@ -24,10 +24,9 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 3
+  const0: dq 1
   const1: dq 2
-  const2: dq 1
-  const3: db `(ArrayType (IntType) 1)`, 0
+  const2: db `(BoolType)`, 0
 
 section .text
 
@@ -39,44 +38,39 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    mov rax, [rel const0] ; 3
+    mov rax, [rel const0] ; true
     push rax ;  actually 8 bytes, new offset: 16
+    ;End LetCmd Line
+
     mov rax, [rel const1] ; 2
     push rax ;  actually 8 bytes, new offset: 24
-    mov rax, [rel const2] ; 1
-    push rax ;  actually 8 bytes, new offset: 32
-    mov rdi, 24   ; total size to allocate
-    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
-    call _jpl_alloc ;
-    ; NOTICE! Here REMOVE a 0 padding, now have[]
-    ; Moving 24 bytes from rsp to rax
-        mov r10, [rsp + 16]
-        mov [rax + 16], r10
-        mov r10, [rsp + 8]
-        mov [rax + 8], r10
-        mov r10, [rsp + 0]
-        mov [rax + 0], r10
-    add rsp, 24 ;  ,new offset 8
-    push rax; new offset: 16
-    mov rax, 3
-    push rax; new offset: 24
     ;End LetCmd Line
 
     
-    ;Start ShowCmd VarExpr(start_idx=23, name='a') as ArrayType(start_idx=10, element_type=IntType(start_idx=9), dimension=1) ,NEED 16
-    sub rsp, 8 ; align stack by 8, new offset 32,now have [8] in align stack
-    ; [ShowCmd] array-var path
-    sub rsp, 16 ; pop stack ,new offset 48
-    ; Moving 16 bytes from rbp - 24 to rsp
-         mov r10, [rbp - 24 + 8]
-         mov [rsp + 8], r10
-         mov r10, [rbp - 24 + 0]
-         mov [rsp + 0], r10
-    lea rdi, [rel const3]
+    ;Start ShowCmd BinopExpr(start_idx=28, left=VarExpr(start_idx=28, name='a'), op=<Binop.NE: '!='>, right=VarExpr(start_idx=33, name='a')) as BoolType(start_idx=28) ,NEED 8
+    ; NOTICE! Here INSERT a 0 padding for 24 and 8, now have [0]
+    ; This is from VarExpr -------
+    sub rsp, 8 ; pop stack ,new offset 32
+        mov r10, [rbp - 16]
+        mov [rsp], r10
+    ; This is from VarExpr -------
+    sub rsp, 8 ; pop stack ,new offset 40
+        mov r10, [rbp - 16]
+        mov [rsp], r10
+    Stack offset: 40 bytes
+  [0]: value=rax, size=8, pad=0
+  [1]: value=rax, size=8, pad=0
+    pop rax ; rax, actually 8 bytes, new offset: 32
+    pop r10 ; rax, actually 8 bytes, new offset: 24
+    cmp rax, r10
+    setne al
+    and rax, 1
+    push rax ;  actually 8 bytes, new offset: 32
+    lea rdi, [rel const2]
     lea rsi, [rsp]
     call _show
-    add rsp, 16 ; push stack ,new offset 32
-    add rsp, 8 ; remove padding of 8, new offset 24, now have []
+    add rsp, 8 ; push stack ,new offset 24
+    ; NOTICE! Here REMOVE a 0 padding, now have[]
     ;End of ShowCmd 
 
     add rsp, 16 ; Local variables ,new offset 8

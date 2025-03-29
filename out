@@ -24,8 +24,10 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 3
-  const1: db `(IntType)`, 0
+  const0: dq 2
+  const1: dq 1
+  const2: dq 4
+  const3: db `(IntType)`, 0
 
 section .text
 
@@ -37,26 +39,60 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    mov rax, [rel const0] ; 3
+    mov rax, [rel const0] ; 2
     push rax ;  actually 8 bytes, new offset: 16
+    mov rax, [rel const1] ; 1
+    push rax ;  actually 8 bytes, new offset: 24
+    mov rdi, 16   ; total size to allocate
+    sub rsp, 8 ; align *current* stack by 8, new offset 32
+    call _jpl_alloc ;
+    add rsp, 8 ; remove padding of 8, new offset 24, now have []
+    ; Moving 16 bytes from rsp to rax
+        mov r10, [rsp + 8]
+        mov [rax + 8], r10
+        mov r10, [rsp + 0]
+        mov [rax + 0], r10
+    add rsp, 16 ;  ,new offset 8
+    push rax; new offset: 16
+    mov rax, 2
+    push rax; new offset: 24
+    ;End LetCmd Line
+
+    mov rax, [rel const2] ; 4
+    push rax ;  actually 8 bytes, new offset: 32
     ;End LetCmd Line
 
     
-    ;Start ShowCmd VarExpr(start_idx=15, name='a') as IntType(start_idx=8) ,NEED 8
-    sub rsp, 8 ; align stack by 8, new offset 24,now have [8] in align stack
+    ;Start ShowCmd VarExpr(start_idx=37, name='num') as IntType(start_idx=11) ,NEED 8
+    sub rsp, 8 ; align stack by 8, new offset 40,now have [8] in align stack
     ; VarExpr => local or global
-    sub rsp, 8 ; pop stack ,new offset 32
-    mov r10, [rbp - 16 + 0]
+    sub rsp, 8 ; pop stack ,new offset 48
+    {'arr': 16, 'num': 24, 'd': 40}
+    mov r10, [rbp - 24 + 0]
     mov [rsp+ 0], r10
-    add rsp, 8 ; remove padding of 8, new offset 24, now have []
-    lea rdi, [rel const1]
+    lea rdi, [rel const3]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; push stack ,new offset 16
-    ;Nothing in Padding
+    add rsp, 8 ; push stack ,new offset 40
+    add rsp, 8 ; remove padding of 8, new offset 32, now have []
     ;End of ShowCmd 
 
-    add rsp, 8 ; Local variables ,new offset 8
+    
+    ;Start ShowCmd VarExpr(start_idx=46, name='d') as IntType(start_idx=30) ,NEED 8
+    sub rsp, 8 ; align stack by 8, new offset 40,now have [8] in align stack
+    ; VarExpr => local or global
+    sub rsp, 8 ; pop stack ,new offset 48
+    {'arr': 16, 'num': 24, 'd': 40}
+    mov r10, [rbp - 40 + 0]
+    mov [rsp+ 0], r10
+    lea rdi, [rel const3]
+    lea rsi, [rsp]
+    call _show
+    add rsp, 8 ; push stack ,new offset 40
+    add rsp, 8 ; remove padding of 8, new offset 32, now have []
+    ;End of ShowCmd 
+
+    add rsp, 24 ; Local variables ,new offset 8
     pop r12
     pop rbp
     ret

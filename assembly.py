@@ -44,14 +44,14 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append("; VarExpr => local or global")
             lines.extend(sub_rsp(get_size(expr.resolved_type)))
             offset = get_size(expr.resolved_type) - 8
+            lines.append(f"{var_offsets}")
             if expr.name in var_offsets:
-                now_place = var_offsets[expr.name]
                 while offset >= 0:
-                    start = f"rbp - {now_place}"
+                    start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
                     lines.append(f"mov r10, [{start} + {offset}]")
                     lines.append(f"mov [rsp+ {offset}], r10")
                     offset -= 8
-                    now_place -= 8
+
             else:
                 start = "start"
 

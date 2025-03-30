@@ -114,6 +114,8 @@ class CallingConvention:
         if isinstance(self.fn_type.return_type, (ArrayType, StructType)):
             lines.extend(self.stack.pop_reg("rdi", 8, comment="Restore hidden return pointer"))
 
+        if self.stack.peek()[0] == "expr_equal":
+            self.stack.pop_reg("expr_equal", 8, comment="Restore rbp")
         # 恢复 rbp 并 ret
         lines.extend(self.stack.pop_reg("rbp", 8, comment="Restore rbp"))
         lines.append("ret")

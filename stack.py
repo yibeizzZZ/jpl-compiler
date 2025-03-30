@@ -104,3 +104,9 @@ class Stack:
         for i, (val, size, pad) in enumerate(self.contents):
             lines.append(f"  [{i}]: value={val}, size={size}, pad={pad}")
         return "\n".join(lines)
+
+    def peek(self) -> Tuple[str, int, int]:
+        if self.contents:
+            return self.contents[-1]
+        else:
+            raise Exception("Stack is empty")

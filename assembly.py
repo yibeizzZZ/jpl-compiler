@@ -59,43 +59,46 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 
 
         elif expr.__class__.__name__ == "CallExpr":
-            
-
-            # 计算 total_stack 与 return_value_space
-
-            # 1) 计算 total_stack：每个参数占用的空间之和
+            # 1. Compute total_stack: sum of each argument's size.
             total_stack = sum(get_size(arg.resolved_type) for arg in expr.arguments)
+            # print(f"total_stack: {total_stack}")
             if total_stack == 0:
-                total_stack = 8  # 至少分配 8 字节
-
-            # 2) 计算返回值空间（简单类型返回值不用额外空间）
+                total_stack = 16  # At least allocate 8 bytes if no arguments.
+            
+            # 2. Compute return_value_space: for composite types, this is nonzero.
             if isinstance(expr.resolved_type, (ArrayType, StructType)):
                 return_value_space = get_size(expr.resolved_type)
             else:
                 return_value_space = 0
+            
+            # 3. Determine extra space needed.
             space_needed = total_stack - return_value_space
             lines.append(f"; Start of CallExpr with space {space_needed}")
-            # 调用 stack.align 并用 extend 添加生成的指令
-            lines.extend(stack.align_current())
-            # 生成实参代码（从右到左）
+            
+            # 4. Align the stack.
+            lines.extend(stack.align(space_needed))
+            
+            # 5. Generate code for arguments in reverse order (right-to-left).
             for arg in reversed(expr.arguments):
                 lines.extend(cg_expr(arg))
-
-            # 调用函数
-            func_name = expr.function.name  # 假设 function 是 VarExpr
+            
+            # 6. Call the function.
+            func_name = expr.function.name  # assuming function is a VarExpr.
             lines.append(f"call _{func_name}")
-
-            # # 还原对齐：同样用 extend
+            
+            # 7. Unalign the stack.
             lines.extend(stack.unalign())
-
-            # 将返回值 (rax) 压栈
+            
+            # 8. Handle the returned value.
+            # For a float, according to the slide, we assume the callee returns the value in xmm0.
             if isinstance(expr.resolved_type, FloatType):
-                # Instead of pushing into rax, load the float from the stack directly into xmm0:
-                lines.append(f"sub rsp, {get_size(expr.resolved_type)}")
-                lines.append("movsd [rsp], xmm0")
+                # We reserve the required space (get_size returns 8 for a float)
+                lines.append(f"sub rsp, {get_size(expr.resolved_type)} ; reserve space for float return")
+                lines.append("movsd [rsp], xmm0 ; store float return value")
             else:
+                # For simple integer or boolean types, the return is in rax.
                 lines.extend(stack.push("rax", get_size(expr.resolved_type)))
-
+            
             lines.append("; End of CallExpr")
             
 
@@ -239,7 +242,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("movsd [rsp], xmm0 ; xxx")
             else:
                 if expr_equal(expr.right , expr.left):
-                    stack.push("", 8)
+                    stack.push("expr_equal", 8)
                     stack.offset-=8
                 
                 if expr.op.value == '/':
@@ -495,7 +498,27 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         size = get_size(type_node)
         stack.pop(reg, size)
         return [f"movsd {reg}, [rsp]", f"add rsp, {size}"]
+    
+    # def generate_composite_return(composite_type: TypeNode) -> List[str]:
+    # # The basic size (for example, for an ArrayType, get_size returns 8)
+    #     base_size = get_size(composite_type)
+    #     # For composite returns, we assume two parts: pointer and length.
+    #     total_size = base_size
+    #     # We decide that the pointer is stored at offset 0, and the length at offset base_size.
+    #     pointer_offset = 0
+    #     length_offset = base_size
         
+    #     instructions = []
+    #     # Retrieve the hidden return pointer from the caller-provided memory
+    #     instructions.append("mov rax, [rbp - 8] ; Address to write return value into")
+    #     instructions.append(f"; Moving {total_size} bytes from rsp to the return area")
+    #     instructions.append(f"mov r10, [rsp + {length_offset}] ; get composite part (e.g., length)")
+    #     instructions.append(f"mov [rax + {length_offset}], r10")
+    #     instructions.append(f"mov r10, [rsp + {pointer_offset}] ; get composite part (e.g., pointer)")
+    #     instructions.append(f"mov [rax + {pointer_offset}], r10")
+    #     instructions.append(f"add rsp, {total_size} ; Clean up composite value from stack")
+    #     return instructions
+    
     def generate_function(cmd: FnCmd) -> str:
         func_body = []
         # 插入入口标签
@@ -520,16 +543,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 func_body.extend(expr_lines)
                 if isinstance(stmt.expr.resolved_type, FloatType):
                     func_body.extend(pop_float_from_stack("xmm0", stmt.expr.resolved_type))
-                elif isinstance(stmt.expr.resolved_type, ArrayType):
-                    composite_size = 16
-                    func_body.append("mov rax, [rbp - 8] ; Address to write return value into")
-                    func_body.append(f"; Moving {composite_size} bytes from rsp to rax")
-                    # Copy the composite value from the stack into the caller's return area.
-                    func_body.append("mov r10, [rsp + 8] ; get composite part (e.g., length)")
-                    func_body.append("mov [rax + 8], r10")
-                    func_body.append("mov r10, [rsp + 0] ; get composite part (e.g., pointer)")
-                    func_body.append("mov [rax + 0], r10")
-                    # Clean up the 16 bytes from the stack that held the composite value.
+                # elif isinstance(stmt.expr.resolved_type, ArrayType):
+                #      func_body.extend(generate_composite_return(stmt.expr.resolved_type))
                 else:
                     func_body.extend(stack.pop("rax", get_size(stmt.expr.resolved_type)))
                     
@@ -539,12 +554,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         total_local = stack.offset - initial_offset
         func_body.append(f"add rsp, {total_local} ; Local variables")
         
-        if isinstance(cmd.return_type, ArrayType):
-            func_body.append("pop rbp")
-            pass
-        else:
-            func_body.extend(stack.pop_reg("rbp", 8))
-        func_body.append("ret")
+        # if isinstance(cmd.return_type, ArrayType):
+        #     func_body.append("pop rbp")
+        #     pass
+        # else:
+        #     func_body.extend(stack.pop_reg("rbp", 8))
+        # func_body.append("ret")
+        func_body.extend(cc.generate_epilogue())
         return "\n".join(func_body)
 
     prologue_lines = []
@@ -586,10 +602,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif isinstance(cmd, ShowCmd):
             body_lines.append(f"\n    ;Start ShowCmd {cmd.expr} as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
             body_lines.extend(stack.align(get_size(cmd.expr)))
-            
-            literal_flag = False
-            if isinstance(cmd.expr, VarExpr):
-                literal_flag = literal_flags.get(cmd.expr.name)
                 
             if isinstance(cmd.expr, CallExpr) and isinstance(cmd.expr.resolved_type, ArrayType):
                 body_lines.extend(sub_rsp(8))

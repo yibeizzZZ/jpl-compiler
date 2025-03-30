@@ -20,6 +20,8 @@ test:
 
 hi:
 	make -C ./grader DIR=$(PWD) PART=2 test-hw11
+go:
+	make -C ./grader DIR=$(PWD) PART=3 test-hw11
 # Display help
 help:
 	@echo "Available targets:"

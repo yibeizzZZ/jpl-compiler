@@ -51,7 +51,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append(f"mov r10, [{start} + {offset}]")
                     lines.append(f"mov [rsp+ {offset}], r10")
                     offset -= 8
-
             else:
                 start = "start"
 

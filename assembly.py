@@ -7,7 +7,7 @@ from dataclasses import asdict
 def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     stack = Stack()
     var_offsets: Dict[str,int] = {}
-    next_local_offset = 16
+    next_global_offset = 16
     num_counter = 0
     const_table = {}
     type_const_table = {}
@@ -43,50 +43,105 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "VarExpr":
             lines.append("; VarExpr => local or global")
             lines.extend(sub_rsp(get_size(expr.resolved_type)))
-            offset = get_size(expr.resolved_type) - 8
-            # lines.append(f";{var_offsets}")
-            if expr.name in var_offsets:
-                while offset >= 0:
-                    start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
-                    lines.append(f"mov r10, [{start} + {offset}]")
-                    lines.append(f"mov [rsp+ {offset}], r10")
-                    offset -= 8
+            if expr.name not in var_offsets:
+                lines.append("; WARNING: variable not found!")
             else:
-                start = "start"
-                # 这里差了 Local Variables 的 expr 跟上面基本一样 但是要用 r12 - offset 作为它的start
-            
-
-                
+                value = var_offsets[expr.name]
+                if isinstance(value, tuple):
+                    lines.append("; ;;;;;;;;;;;;;;LOCAL!!!!!!")
+                    stored_offset = value[0]
+                    for i in range(0, get_size(expr.resolved_type), 8):
+                        if i == 0:
+                            effective = stored_offset - 8
+                        else:
+                            effective = stored_offset
+                        target_offset = get_size(expr.resolved_type) - 8 - i
+                        lines.append(f"mov r10, [rbp - {effective}]")
+                        lines.append(f"mov [rsp+ {target_offset}], r10")
+                    # stack.push(value[0] , get_size(expr.resolved_type))
+                else:
+                    lines.append("; ;;;;;;;;;;;;;;GLOBAL!!!!!!")
+                    offset = get_size(expr.resolved_type) - 8
+                    while offset >= 0:
+                        start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
+                        lines.append(f"mov r10, [{start} + {offset}]")
+                        lines.append(f"mov [rsp+ {offset}], r10")
+                        offset -= 8
+                    
+            lines.append(f";;; now we have {var_offsets}")
+   
 
         elif expr.__class__.__name__ == "CallExpr":
+            # lines.append(f"`````````````````````{stack} ")
 
+            
+            #make a CallingConvention from f's type
+            fn_type = expr.function.resolved_type
+            cc = CallingConvention()
+            args_info = []
+            for param in fn_type.param_types:
+                arg_type = type_to_str(param)  
+                args_info.append((8, arg_type))
+            assignments = cc.get_argument_assignments(args_info)
+            
             space_needed = stack.offset - get_size(expr.resolved_type)
             lines.append(f"; Start of CallExpr with space {space_needed}")
             
+            #prepare stack
             if not isinstance(expr.resolved_type, (ArrayType)):
                 lines.extend(stack.align(space_needed))
             else:
                 lines.extend(stack.align_current())
             
-
             if(isinstance(expr.resolved_type,ArrayType)) :
                 lines.extend(sub_rsp(16))
+                
+            #generate code for args,
+            num_params = len(assignments)
+            # lines.append(f"`````````````````````{expr} ")
+            for rev_idx, arg in enumerate(reversed(expr.arguments)):
+                # 对应的参数下标，从参数列表中取（左到右顺序）
+                param_idx = num_params - 1 - rev_idx  
+                assign = assignments[param_idx]
+                lines.append(f"`````````````````````{assign} ")
+                # 生成当前实参的计算代码，结果会推入栈
+                arg_code = cg_expr(arg)
+                
+                lines.extend(arg_code)
+                lines.append(f"`````````````````````{stack} ")
+                # 如果参数是通过栈传递，实参已经留在栈上，无需额外处理
+                if isinstance(assign, tuple) and assign[0] == "stack":
+                    lines.append(f"; argument {param_idx} passed on stack at offset {assign[1]}")
+                else:
+                    # 参数是通过寄存器传递，此时需要将刚才计算好的实参从栈中弹出，
+                    # 并放入指定的寄存器 assign
+                    reg = assign  # 例如 "rdi" 或 "xmm0"
+                    param_type = fn_type.param_types[param_idx]
+                    if type_to_str(param_type) == "float":
+                        lines.extend(pop_float_from_stack(reg, param_type))
+                    else:
+                        lines.extend(stack.pop(reg, 8))
+            
 
-            for arg in reversed(expr.arguments): #
-                lines.extend(cg_expr(arg))
+            #do call
             func_name = expr.function.name  
-
             if(isinstance(expr.resolved_type,ArrayType)) :
                 retOffset = stack.offset - 32 + stack.padding_stack[-1]
                 lines.append(f"lea rdi, [rsp + {retOffset}]")
-            
             lines.append(f"call _{func_name}")
+            
+            for assign in assignments:
+                if isinstance(assign, tuple) and assign[0] == "stack":
+                    lines.extend(add_rsp(8, "free stack argument"))
             
             lines.extend(stack.unalign())
             
-            if not isinstance(expr.resolved_type, (ArrayType)):
-                lines.append(f";-------------------------------Call 在这里{expr.resolved_type}")
-                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            if not isinstance(expr.resolved_type, ArrayType):
+                if isinstance(expr.resolved_type, FloatType):
+                    lines.extend(sub_rsp(8))
+                    lines.append("movsd [rsp], xmm0")
+                else:
+                    lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 
             lines.append("; End of CallExpr")
             
@@ -373,15 +428,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             stack_items = n * items_per_elem
             elem_size = 8
             total_size = stack_items * elem_size
-
             for elem in reversed(expr.elements):
                 lines.extend(cg_expr(elem))
-                
             lines.append(f"mov rdi, {total_size}   ; total size to allocate")
             lines.extend(stack.align_current())
             lines.append(f"call _jpl_alloc ;")
             lines.extend(unalign_stack())
-
             lines.append(f"; Moving {total_size} bytes from rsp to rax")
             for i in range(stack_items):
                 offset = (stack_items - 1 - i) * elem_size
@@ -464,6 +516,19 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         
         return [f"add rsp, {n} ; {comment} ,new offset {stack.offset}"]
     
+    def type_to_str(type_node):
+        if isinstance(type_node, (IntType, BoolType)):
+            return "int"
+        elif isinstance(type_node, FloatType):
+            return "float"
+        elif isinstance(type_node, ArrayType):
+            return "array"
+        elif isinstance(type_node, StructType):
+            return "int"
+        elif isinstance(type_node, VoidType):
+            return "void"
+        else:
+            raise Exception(f"Unsupported type: {type(type_node).__name__}")
     def get_size(type_node: TypeNode) -> int:
         if isinstance(type_node, (ArrayType)):
             return 16
@@ -471,7 +536,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             return 8
         elif isinstance(type_node, (VoidType , StructType)):
             raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
-        
         else:
             return get_size(type_node.resolved_type)
         
@@ -486,7 +550,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         return [f"movsd {reg}, [rsp]", f"add rsp, {size}"]
     
     def generate_composite_return(composite_type: TypeNode) -> List[str]:
-    # The basic size (for example, for an ArrayType, get_size returns 8)
         base_size = get_size(composite_type)
         total_size = base_size
         pointer_offset = 0
@@ -503,7 +566,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         return instructions
     
     def generate_function(cmd: FnCmd) -> str:
-        nonlocal next_local_offset
+        nonlocal next_global_offset
         func_body = []
 
         func_body.append(f"{cmd.name}:")
@@ -512,52 +575,67 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         func_body.extend(stack.push_reg("rbp", 8, comment="Save old rbp"))
         func_body.append("mov rbp, rsp")
         retOffset = stack.offset
+        
         if not isinstance(cmd.return_type,VoidType) and isinstance(cmd.return_type,(ArrayType)):
             retOffset = stack.offset
-            func_body.extend(stack.push_reg("rdi" , 8 ))
             var_offsets["$return"] = stack.offset
-            next_local_offset += 8
+            func_body.extend(stack.push_reg("rdi" , 8 ))
+            next_global_offset = stack.offset
+        
+        # stack.push_reg("rdi",8)
+        
         func_body.append(f";;;;;;;;;;;;;Return offset set to {retOffset}")
 
-        func_body.append(f";Start Copying Data{var_offsets}, {next_local_offset} , {retOffset}")
-        
-        func_body.append(f";;;Cmd Body have{cmd.body} ,\n;;; ret addr at {retOffset}")
-        # func_body.extend(CallingConvention.recieve_args(cmd, stack, var_offsets))
+        cc = CallingConvention()
 
+        args_info = []
+        for binding in cmd.bindings:
+            arg_type = type_to_str(binding.type_node)  
+            args_info.append((8, arg_type))  # 假设参数大小为8字节
+
+        assignments = cc.get_argument_assignments(args_info)
+        for i, binding in enumerate(cmd.bindings):
+            var_offsets[binding.lvalue.name] = (next_global_offset, "local")
+            next_global_offset += get_size(binding.type_node)
+
+
+        total_stack_size = cc.compute_total_stack_size()
+        func_body.append(f"; Total stack space for args: {total_stack_size} bytes")
 
         for stmt in cmd.body:
             if isinstance(stmt, ReturnStmt):
-                
                 func_body.append(";;;This is from ReturnStmt")
                 expr_lines = cg_expr(stmt.expr)
                 func_body.extend(expr_lines)
                 if isinstance(stmt.expr.resolved_type, FloatType):
+                    
                     func_body.extend(pop_float_from_stack("xmm0", stmt.expr.resolved_type))
                 elif isinstance(stmt.expr.resolved_type, ArrayType):
                     func_body.extend(generate_composite_return(stmt.expr.resolved_type))
                 else:
                     func_body.extend(stack.pop("rax", get_size(stmt.expr.resolved_type)))
-                    
+            elif isinstance(stmt, LetStmt):
+                let_lines = []
+                let_lines.append(f"; Begin LetStmt for variable {stmt}")
+                let_lines.extend(cg_expr(stmt.expr))
+                var_offsets[stmt.lvalue.name] = (next_global_offset, "local")
+                next_global_offset += get_size(stmt.expr.resolved_type)
+                let_lines.append(f"; Assign {stmt.lvalue.name} to stack offset {var_offsets[stmt.lvalue.name][0]}")
+                func_body.extend(let_lines)
             else:
                 func_body.extend(cg_expr(stmt))
             
         total_local = stack.offset - initial_offset - 8
         func_body.append(f"add rsp, {total_local} ; Local variables")
 
-
-        # func_body.append(f";;{stack} , we have extra {stack.offset - retOffset}")
-        func_body.append(f";------------------------------")
-        # popSize = stack.offset - retOffset
-        # if popSize > 0 :
-        #     func_body.extend(add_rsp(stack.offset - retOffset ))
-        
         while stack.peek()[0] != "rbp":
             func_body.append(f";;;;;; {stack.peek()[0]} got popped")
             stack.pop_reg(stack.peek()[0] , stack.peek()[1])
-        func_body.append(f";------------------------------")
+
         stack.offset = initial_offset + 8
         func_body.extend(stack.pop_reg("rbp", 8, comment="Restore rbp"))
         func_body.append("ret")
+
         return "\n".join(func_body)
 
 #--------------------------------------------------------------------------------
@@ -567,6 +645,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     prologue_lines.append("push r12")
     prologue_lines.append("mov r12, rbp ; end of jpl_main prelude\n")
     stack.offset += 8
+    
+    # stack.push_reg("rbp",8)
+    # prologue_lines.append(f"{stack}")
     
     epilogue_lines = []
     
@@ -579,15 +660,15 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             
         elif isinstance(cmd, LetCmd):
             lines = cg_expr(cmd.value,)
-            var_offsets[cmd.lvalue.name] = next_local_offset
-            next_local_offset += 8
+            var_offsets[cmd.lvalue.name] = next_global_offset
+            next_global_offset += 8
             if isinstance(cmd.lvalue, ArrayLValue):
                 for idx in cmd.lvalue.indices:
-                    var_offsets[idx] = next_local_offset
-                    next_local_offset += 8
+                    var_offsets[idx] = next_global_offset
+                    next_global_offset += 8
             elif isinstance(cmd.value, ArrayLiteralExpr):
                 literal_flags[cmd.lvalue.name] = True
-                next_local_offset += 8  
+                next_global_offset += 8  
             else:
                 literal_flags[cmd.lvalue.name] = False
             body_lines.extend(lines)
@@ -597,7 +678,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             body_lines.append(f";;{stack.offset} ,-------showing {cmd.expr}")
             body_lines.append(f"\n    ;Start ShowCmd as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
             body_lines.extend(stack.align(get_size(cmd.expr)))
- 
+        
             body_lines.extend(cg_expr(cmd.expr))
             
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())

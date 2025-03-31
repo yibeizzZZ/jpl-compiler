@@ -1,125 +1,89 @@
-from typing import Dict, List
-from parser import FnCmd
-from typechecker import FnType, IntType, FloatType, ArrayType, StructType, BoolType, VoidType
-# 假设 get_size 已经定义在本模块或其他地方
-def get_size(type_node) -> int:
-    if isinstance(type_node, ArrayType):
-        return 16
-    elif isinstance(type_node, (IntType, FloatType, BoolType)):
-        return 8
-    elif isinstance(type_node, (VoidType, StructType)):
-        raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
-    else:
-        # 如果存在 resolved_type
-        return get_size(type_node.resolved_type)
-    
 
+from typing import List, Tuple, Union
+from dataclasses import dataclass
+
+@dataclass
+class StackArg:
+
+    size: int
+    offset: int
+    arg_type: str
 
 class CallingConvention:
-    def __init__(self, fn_type: FnType, stack, var_offsets: Dict[str, int]):
-        self.fn_type = fn_type          
-        self.stack = stack              
-        self.var_offsets = var_offsets 
-
-        self.int_arg_regs = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
-        self.float_arg_regs = ["xmm0", "xmm1", "xmm2", "xmm3", "xmm4", "xmm5", "xmm6", "xmm7"]
-
-        self.int_used = 0
-        self.float_used = 0
-
-    @classmethod
-    def recieve_args(cls, cmd: FnCmd, stack, var_offsets: Dict[str, int]) -> List[str]:
-        lines: List[str] = []
-
-        param_registers = ["rdi", "rsi", "rdx", "rcx", "r8", "r9"]
-        reg_index = 0
-
-        for binding in cmd.bindings:
-            # 这里假设 binding 中有 lvalue 和 type_node 两个属性
-            # 如果类型简单且寄存器空闲，则参数来自寄存器：
-            if reg_index < len(param_registers) and isinstance(binding.type_node, (IntType, FloatType, BoolType)):
-                reg = param_registers[reg_index]
-                reg_index += 1
-                lines.append(f"; Receiving parameter {binding.lvalue.to_s_expression()} from register {reg}")
-                # 用 stack.push_reg() 将寄存器中的值压入栈中
-                lines.extend(stack.push_reg(reg, get_size(binding.type_node), comment="Receive arg from reg"))
-                # 记录该参数在本地栈中的偏移（这里统一使用 lvalue 的 to_s_expression() 作为键）
-                var_offsets[binding.lvalue.to_s_expression()] = stack.offset
-            else:
-                # 否则，参数在调用者栈中
-                # 计算参数在调用者栈中的偏移：
-                # offset = total_stack - binding.arg_offset + 16
-                arg_offset = binding.arg_offset if hasattr(binding, "arg_offset") else 0
-                total_stack = cmd.total_arg_stack if hasattr(cmd, "total_arg_stack") else 0
-                offset = total_stack - arg_offset + 16
-                lines.append(f"; Receiving parameter {binding.lvalue.to_s_expression()} from caller's stack offset {offset}")
-                # 生成汇编：将 [rbp - offset] 处的值搬运到局部栈中
-                lines.append(f"mov rax, [rbp - {offset}]")
-                lines.extend(stack.push("rax", get_size(binding.type_node)))
-                var_offsets[binding.lvalue.to_s_expression()] = stack.offset
-        return lines
 
 
-    def allocate_args(self, fn_cmd: FnCmd) -> List[str]:
+    int_registers: List[str] = ['rdi', 'rsi', 'rdx', 'rcx', 'r8', 'r9']
+    float_registers: List[str] = ['xmm0', 'xmm1', 'xmm2', 'xmm3', 'xmm4', 'xmm5', 'xmm6', 'xmm7', 'xmm8']
+
+    def __init__(self):
+
+        self.stack_args: List[StackArg] = []
+        self.current_stack_offset: int = 0
+        # 用于记录已分配的寄存器个数，分别针对整数和浮点参数
+        self.int_reg_index: int = 0
+        self.float_reg_index: int = 0
+
+    def assign_argument(self, arg_size: int, arg_type: str) -> Union[str, Tuple[str, int]]:
         """
-        根据参数个数和寄存器顺序，将参数从寄存器或栈存入 [rbp - offset] 对应的位置。
-        幻灯片提到：
-          - first N int args -> int registers
-          - first M float args -> float registers
-          - 其余都压到栈上
+        为一个参数分配传递位置。参数由其大小（字节数）和类型（"int"、"float"或"array"）决定。
+        
+        优先规则：
+         - 如果参数类型为 "float" 且浮点寄存器还有空闲，则返回相应的寄存器名；
+         - 对于 "int" 或 "array" 类型参数，如果整数寄存器未用完，则返回相应的寄存器名；
+         - 否则，将参数放入栈中，并返回一个元组 ("stack", offset)，其中 offset 为栈上起始位置。
+         
+        Args:
+            arg_size: 参数占用的字节数（通常为8字节对齐）。
+            arg_type: 参数的类型，字符串取值 "int"、"float" 或 "array"。
+            
+        Returns:
+            如果参数分配到寄存器，则返回寄存器名称（如 "rdi" 或 "xmm0"）；
+            如果分配到栈上，则返回元组 ("stack", offset)。
         """
-        lines: List[str] = []
-        stack_arg_offset = 0  # 记录已经在栈上存了多少参数
+        # 浮点参数优先使用浮点寄存器
+        if arg_type == "float":
+            if self.float_reg_index < len(self.float_registers):
+                reg = self.float_registers[self.float_reg_index]
+                self.float_reg_index += 1
+                return reg
+        # 对于整数和数组参数使用整数寄存器
+        if arg_type in ("int", "array"):
+            if self.int_reg_index < len(self.int_registers):
+                reg = self.int_registers[self.int_reg_index]
+                self.int_reg_index += 1
+                return reg
+        # 如果寄存器不足，则通过栈传递
+        offset = self.current_stack_offset
+        self.stack_args.append(StackArg(size=arg_size, offset=offset, arg_type=arg_type))
+        # 假定参数按8字节对齐
+        self.current_stack_offset += arg_size  
+        return ("stack", offset)
 
-        for i, binding in enumerate(fn_cmd.bindings):
-            ptype = binding.type_node
-            # 这里采用简单计算：参数在 [rbp - (16 + i*8)] 处存放
-            param_offset = 16 + i * 8  
-            lines.append(f"; Place parameter {binding.lvalue.to_s_expression()} at [rbp - {param_offset}]")
-            if isinstance(ptype, FloatType):
-                if self.float_used < len(self.float_arg_regs):
-                    reg = self.float_arg_regs[self.float_used]
-                    self.float_used += 1
-                    lines.append(f"movsd [rbp - {param_offset}], {reg} ; float param")
-                    self.var_offsets[binding.lvalue.name] = param_offset
-                else:
-                    stack_arg_offset += 8
-                    lines.append(f"; float param on stack (TODO: handle offsets properly)")
-                    self.var_offsets[binding.lvalue.name] = param_offset
-            elif isinstance(ptype, (IntType, BoolType)):
-                if self.int_used < len(self.int_arg_regs):
-                    reg = self.int_arg_regs[self.int_used]
-                    self.int_used += 1
-                    lines.append(f"mov [rbp - {param_offset}], {reg} ; int/bool param")
-                    self.var_offsets[binding.lvalue.name] = param_offset
-                else:
-                    stack_arg_offset += 8
-                    lines.append(f"; int param on stack (TODO: handle offsets properly)")
-                    self.var_offsets[binding.lvalue.name] = param_offset
-            else:
-                # 对于数组/结构体类型（假设传递的是指针）
-                if self.int_used < len(self.int_arg_regs):
-                    reg = self.int_arg_regs[self.int_used]
-                    self.int_used += 1
-                    lines.append(f"mov [rbp - {param_offset}], {reg} ; struct/array pointer param")
-                    self.var_offsets[binding.lvalue.name] = param_offset
-                else:
-                    stack_arg_offset += 8
-                    lines.append(f"; struct/array param on stack (TODO: handle offsets properly)")
-                    self.var_offsets[binding.lvalue.name] = param_offset
-
-        return lines
-
-    def generate_epilogue(self) -> List[str]:
+    def compute_total_stack_size(self, return_space: int = 0) -> int:
         """
-        函数尾部：恢复保存的寄存器并 ret
-        如果之前保存了 hidden return pointer（针对 Array/Struct 返回），这里需要 pop 出来。
+        计算所有通过栈传递的参数所需的总栈空间，以及额外预留的返回值区域（针对数组返回）。
         """
-        lines: List[str] = []
-        if isinstance(self.fn_type.return_type, (ArrayType, StructType)):
-            lines.extend(self.stack.pop_reg("rdi", 8, comment="Restore hidden return pointer"))
-        if self.stack.peek()[0] == "expr_equal":
-            lines.extend(self.stack.pop_reg("expr_equal", 8, comment="Restore expr_equal"))
-        lines.extend(self.stack.pop_reg("rbp", 8, comment="Restore rbp"))
-        lines.append("ret")
-        return lines
+        return self.current_stack_offset + return_space
+
+    def get_argument_assignments(self, args: List[Tuple[int, str]]) -> List[Union[str, Tuple[str, int]]]:
+        """
+        根据给定的参数列表（每个参数以 (size, type) 表示）返回每个参数的传递位置。
+        保证参数顺序不变。
+        """
+        assignments = []
+        for arg_size, arg_type in args:
+            assignment = self.assign_argument(arg_size, arg_type)
+            assignments.append(assignment)
+        return assignments
+
+    def get_return_location(self, ret_type: str) -> str:
+        
+        if ret_type == "int":
+            return "rax"
+        elif ret_type == "float":
+            return "xmm0"
+        elif ret_type == "array":
+            return "stack"
+        else:
+            raise ValueError(f"Unknown return type: {ret_type}")
+

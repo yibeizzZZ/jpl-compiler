@@ -1,1 +1,131 @@
-Compilation failed, 'LetStmt' object has no attribute 'resolved_type'
+;pop_reg mismatch: expected rax, at size 8
+;pop_reg mismatch: expected rax, at size 8
+;pop_reg mismatch: expected 24, at size 16
+;pop_reg mismatch: expected rax, at size 8
+;pop_reg mismatch: expected rax, at size 8
+;pop_reg mismatch: expected rax, at size 8
+;pop_reg mismatch: expected rdi, at size 8
+;pop_reg mismatch: expected rbp, at size 8
+global jpl_main
+global _jpl_main
+extern _fail_assertion
+extern _jpl_alloc
+extern _get_time
+extern _show
+extern _print
+extern _print_time
+extern _read_image
+extern _write_image
+extern _fmod
+extern _sqrt
+extern _exp
+extern _sin
+extern _cos
+extern _tan
+extern _asin
+extern _acos
+extern _atan
+extern _log
+extern _pow
+extern _atan2
+extern _to_int
+extern _to_float
+
+section .data
+  const0: dq 1
+  const1: db `(ArrayType (ArrayType (IntType) 1) 1)`, 0
+
+section .text
+f:
+_f:
+push rbp ; Save old rbp; new offset: 16 ,now have [('rbp', 8, 0)]
+mov rbp, rsp
+push rdi; new offset: 24 ,now have [('rbp', 8, 0), ('rdi', 8, 0)]
+;;;;;;;;;;;;;Return offset set to 16
+; Total stack space for args: 0 bytes
+; Begin LetStmt for variable LetStmt(start_idx=18, lvalue=VarLValue(start_idx=27, name='b'), expr=ArrayLiteralExpr(start_idx=18, elements=[IntExpr(start_idx=32, value=1)]))
+mov rax, [rel const0] ; 1
+push rax ;  actually 8 bytes, new offset: 32,now have [('rbp', 8, 0), ('rdi', 8, 0)]
+mov rdi, 8   ; total size to allocate
+; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+call _jpl_alloc ;
+; NOTICE! Here REMOVE a 0 padding, now have[]
+; Moving 8 bytes from rsp to rax
+    mov r10, [rsp + 0]
+    mov [rax + 0], r10
+add rsp, 8 ;  ,new offset 24
+push rax; new offset: 32 ,now have [('rbp', 8, 0), ('rdi', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+mov rax, 1
+push rax; new offset: 40 ,now have [('rbp', 8, 0), ('rdi', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+; Assign b to stack offset 24
+;;;This is from ReturnStmt
+; VarExpr => local or global
+sub rsp, 16 ; pop stack ,new offset 56
+; ;;;;;;;;;;;;;;LOCAL!!!!!!
+mov r10, [rbp - 16]
+mov [rsp+ 8], r10
+mov r10, [rbp - 24]
+mov [rsp+ 0], r10
+;;; now we have {'$return': 16, 'b': (24, 'local')}
+mov rdi, 16   ; total size to allocate
+sub rsp, 8 ; align *current* stack by 8, new offset 80
+call _jpl_alloc ;
+add rsp, 8 ; remove padding of 8, new offset 72, now have []
+; Moving 16 bytes from rsp to rax
+    mov r10, [rsp + 8]
+    mov [rax + 8], r10
+    mov r10, [rsp + 0]
+    mov [rax + 0], r10
+add rsp, 16 ;  ,new offset 56
+push rax; new offset: 64 ,now have [('rbp', 8, 0), ('rdi', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), (24, 16, 0), ('rax', 8, 0)]
+mov rax, 1
+push rax; new offset: 72 ,now have [('rbp', 8, 0), ('rdi', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), (24, 16, 0), ('rax', 8, 0), ('rax', 8, 0)]
+mov rax, [rbp - 8] ; Address to write return value into
+; Moving 16 bytes from rsp to the return area
+mov r10, [rsp + 8] ; get composite part (e.g., length)
+mov [rax + 8], r10
+mov r10, [rsp + 0] ; get composite part (e.g., pointer)
+mov [rax + 0], r10
+add rsp, 56 ; Local variables
+;;;;;; rax got popped
+;;;;;; rax got popped
+;;;;;; 24 got popped
+;;;;;; rax got popped
+;;;;;; rax got popped
+;;;;;; rax got popped
+;;;;;; rdi got popped
+pop rbp ; Restore rbp; new offset: 8 ,now have []
+ret
+
+jpl_main:
+_jpl_main:
+    push rbp
+    mov rbp, rsp
+    push r12
+    mov r12, rbp ; end of jpl_main prelude
+
+    ;                            Now Have Cmd FnCmd(start_idx=25, name='f', bindings=[], return_type=ArrayType(start_idx=10, element_type=ArrayType(start_idx=8, element_type=IntType(start_idx=6), dimension=1), dimension=1), body=[LetStmt(start_idx=18, lvalue=VarLValue(start_idx=27, name='b'), expr=ArrayLiteralExpr(start_idx=18, elements=[IntExpr(start_idx=32, value=1)])), ReturnStmt(start_idx=23, expr=ArrayLiteralExpr(start_idx=23, elements=[VarExpr(start_idx=47, name='b')]))])
+    ;                            Now Have Cmd ShowCmd(start_idx=30, expr=CallExpr(start_idx=57, function=VarExpr(start_idx=57, name='f'), arguments=[]))
+    ;;8 ,-------showing CallExpr(start_idx=57, function=VarExpr(start_idx=57, name='f'), arguments=[])
+    
+    ;Start ShowCmd as ArrayType(start_idx=10, element_type=ArrayType(start_idx=8, element_type=IntType(start_idx=6), dimension=1), dimension=1) ,NEED 16
+    sub rsp, 8 ; align stack by 8, new offset 16,now have [8] in align stack
+    ; Start of CallExpr with space 0
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    sub rsp, 16 ; pop stack ,new offset 32
+    lea rdi, [rsp + 0]
+    call _f
+    ; NOTICE! Here REMOVE a 0 padding, now have[8]
+    ; End of CallExpr
+    lea rdi, [rel const1]
+    lea rsi, [rsp]
+    call _show
+    add rsp, 16 ; push stack ,new offset 16
+    add rsp, 8 ; remove padding of 8, new offset 8, now have []
+    ;End of ShowCmd 
+
+    pop r12
+    pop rbp
+    ret
+ 
+Compilation succeeded

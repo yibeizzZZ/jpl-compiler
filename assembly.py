@@ -98,30 +98,22 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 
             #generate code for args,
             num_params = len(assignments)
-            # lines.append(f"`````````````````````{expr} ")
             for rev_idx, arg in enumerate(reversed(expr.arguments)):
-                # 对应的参数下标，从参数列表中取（左到右顺序）
-                param_idx = num_params - 1 - rev_idx  
-                assign = assignments[param_idx]
-                # lines.append(f"`````````````````````{assign} ")
-                # 生成当前实参的计算代码，结果会推入栈
-                arg_code = cg_expr(arg)
-                
-                lines.extend(arg_code)
-                # lines.append(f"`````````````````````{stack} ")
-                # 如果参数是通过栈传递，实参已经留在栈上，无需额外处理
+                lines.extend(cg_expr(arg))
+
+
+            for param_idx, assign in enumerate(assignments):
                 if isinstance(assign, tuple) and assign[0] == "stack":
                     lines.append(f"; argument {param_idx} passed on stack at offset {assign[1]}")
                 else:
-                    # 参数是通过寄存器传递，此时需要将刚才计算好的实参从栈中弹出，
-                    # 并放入指定的寄存器 assign
-                    reg = assign  # 例如 "rdi" 或 "xmm0"
+                    reg = assign  
                     param_type = fn_type.param_types[param_idx]
                     if type_to_str(param_type) == "float":
-                        lines.extend(pop_float_from_stack(reg, param_type))
+                        lines.append(f"movsd {reg}, [rsp] ; spill float parameter to stack")
+                        lines.extend(add_rsp(8, "Reserve space for float parameter"))
                     else:
                         lines.extend(stack.pop(reg, 8))
-            
+                        
 
             #do call
             func_name = expr.function.name  
@@ -584,10 +576,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             next_global_offset = stack.offset
             
         
-        
-
-        # func_body.extend(stack.push_reg("rdi",8))
-        # stack.push_reg("rdi",8)
+        # func_body.extend(stack.push_reg("rdi" , 8 ))
         
         func_body.append(f";;;;;;;;;;;;;Return offset set to {retOffset}")
 
@@ -597,25 +586,31 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         for binding in cmd.bindings:
             arg_type = type_to_str(binding.type_node)  
             args_info.append((8, arg_type))  # 假设参数大小为8字节
-        func_body.append(f";;;;;;;;;;;;;we have {cc.get_argument_assignments(args_info)}")
         assignments = cc.get_argument_assignments(args_info)
+
         for i, binding in enumerate(cmd.bindings):
             # 为每个参数分配一个栈地址（统一存放在 var_offsets 中）
-            var_addr = next_global_offset
+            if isinstance(binding.type_node, ArrayType):
+                var_addr = -next_global_offset  # 数组参数用负数偏移
+            else:
+                var_addr = next_global_offset
             next_global_offset += get_size(binding.type_node)
             assign = assignments[i]
-            # 如果 assignment 是通过栈传递的，说明实参已经在栈上，无需额外生成 spill 代码
-            if isinstance(assign, tuple) and assign[0] == "stack":
+            func_body.append(f";;;;;;;;;;;;;we have {assignments} , i = {i}")
+            if type_to_str(binding.type_node) == "array":
+                func_body.extend(sub_rsp(8, "Reserve space for array parameter"))
+                func_body.append(f"mov r10, [rbp - {var_addr} + 0] ; spill array parameter from rbp to stack")
+                func_body.append("mov [rsp+ 0], r10")
+                stack.push_reg(assign, 16)
+            # 否则如果assign返回的是栈传递，则直接记录
+            elif isinstance(assign, tuple) and assign[0] == "stack":
                 func_body.append(f"; parameter {binding.lvalue.name} passed on stack at offset {assign[1]}")
+            elif type_to_str(binding.type_node) == "float":
+                func_body.extend(sub_rsp(8, "Reserve space for float parameter"))
+                func_body.append(f"movsd [rsp], {assign} ; spill float parameter from {assign} to stack")
+                stack.push_reg(assign, 0)
             else:
-                # assignment 为寄存器传递时，我们需要把该寄存器中的值保存到栈上
-                if type_to_str(binding.type_node) == "float":
-                    func_body.append(f"sub rsp, {get_size(binding.type_node)} ; allocate space for float parameter {binding.lvalue.name}")
-                    func_body.append(f"movsd [rsp], {assign} ; spill float parameter from {assign} to stack")
-                else:
-                    func_body.extend(stack.push_reg(assign,8))
-                    # func_body.append(f"push {assign} ; push parameter {binding.lvalue.name} from register {assign} onto stack")
-            # 将参数的栈地址记录下来（统一用数字表示）
+                func_body.extend(stack.push_reg(assign, 8))
             var_offsets[binding.lvalue.name] = (var_addr, "local")
             
 

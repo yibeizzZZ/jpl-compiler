@@ -103,12 +103,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 # 对应的参数下标，从参数列表中取（左到右顺序）
                 param_idx = num_params - 1 - rev_idx  
                 assign = assignments[param_idx]
-                lines.append(f"`````````````````````{assign} ")
+                # lines.append(f"`````````````````````{assign} ")
                 # 生成当前实参的计算代码，结果会推入栈
                 arg_code = cg_expr(arg)
                 
                 lines.extend(arg_code)
-                lines.append(f"`````````````````````{stack} ")
+                # lines.append(f"`````````````````````{stack} ")
                 # 如果参数是通过栈传递，实参已经留在栈上，无需额外处理
                 if isinstance(assign, tuple) and assign[0] == "stack":
                     lines.append(f"; argument {param_idx} passed on stack at offset {assign[1]}")
@@ -575,13 +575,17 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         func_body.extend(stack.push_reg("rbp", 8, comment="Save old rbp"))
         func_body.append("mov rbp, rsp")
         retOffset = stack.offset
-        
-        if not isinstance(cmd.return_type,VoidType) and isinstance(cmd.return_type,(ArrayType)):
+        # func_body.append(f";;;;;NEEDING PUSH RDI{isinstance(cmd.return_type,(ArrayType)) or len(cmd.bindings) > 0}")
+        if not isinstance(cmd.return_type,VoidType) and (isinstance(cmd.return_type,(ArrayType)) or len(cmd.bindings) > 0):
+            # func_body.append(f";;;;;NEEDING PUSH RDI")
             retOffset = stack.offset
             var_offsets["$return"] = stack.offset
             func_body.extend(stack.push_reg("rdi" , 8 ))
             next_global_offset = stack.offset
         
+        
+
+        # func_body.extend(stack.push_reg("rdi",8))
         # stack.push_reg("rdi",8)
         
         func_body.append(f";;;;;;;;;;;;;Return offset set to {retOffset}")

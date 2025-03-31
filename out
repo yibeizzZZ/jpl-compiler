@@ -1,4 +1,3 @@
-;pop_reg mismatch: expected rdi, at size 8
 ;pop_reg mismatch: expected rbp, at size 8
 global jpl_main
 global _jpl_main
@@ -26,26 +25,27 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 1
-  const1: dq 2
-  const2: db `(IntType)`, 0
+  const0: dq 0
+  const1: db `(BoolType)`, 0
 
 section .text
 f:
 _f:
 push rbp ; Save old rbp; new offset: 16 ,now have [('rbp', 8, 0)]
 mov rbp, rsp
-;;;;;NEEDING PUSH RDITrue
-;;;;;NEEDING PUSH RDI
-push rdi; new offset: 24 ,now have [('rbp', 8, 0), ('rdi', 8, 0)]
 ;;;;;;;;;;;;;Return offset set to 16
+;;;;;;;;;;;;;we have ['rdi']
+push rsi; new offset: 24 ,now have [('rbp', 8, 0), ('rsi', 8, 0)]
 ; Total stack space for args: 0 bytes
 ;;;This is from ReturnStmt
-mov rax, [rel const0] ; 1
-push rax ;  actually 8 bytes, new offset: 32,now have [('rbp', 8, 0), ('rdi', 8, 0)]
-pop rax ; rax, actually 8 bytes, new offset: 24,now have [('rbp', 8, 0), ('rdi', 8, 0)]
+; VarExpr => local or global
+sub rsp, 8 ; pop stack ,new offset 32
+; ;;;;;;;;;;;;;;LOCAL!!!!!!
+mov r10, [rbp - 8]
+mov [rsp+ 0], r10
+;;; now we have {'a': (16, 'local')}
+pop rax ; rsi, actually 8 bytes, new offset: 24,now have [('rbp', 8, 0)]
 add rsp, 8 ; Local variables
-;;;;;; rdi got popped
 pop rbp ; Restore rbp; new offset: 8 ,now have []
 ret
 
@@ -56,22 +56,22 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    ;                            Now Have Cmd FnCmd(start_idx=15, name='f', bindings=[Binding(start_idx=6, lvalue=VarLValue(start_idx=5, name='a'), type_node=IntType(start_idx=6))], return_type=IntType(start_idx=9), body=[ReturnStmt(start_idx=13, expr=IntExpr(start_idx=33, value=1))])
-    ;                            Now Have Cmd ShowCmd(start_idx=21, expr=CallExpr(start_idx=42, function=VarExpr(start_idx=42, name='f'), arguments=[IntExpr(start_idx=44, value=2)]))
-    ;;8 ,-------showing CallExpr(start_idx=42, function=VarExpr(start_idx=42, name='f'), arguments=[IntExpr(start_idx=44, value=2)])
+    ;                            Now Have Cmd FnCmd(start_idx=15, name='f', bindings=[Binding(start_idx=6, lvalue=VarLValue(start_idx=5, name='a'), type_node=BoolType(start_idx=6))], return_type=BoolType(start_idx=9), body=[ReturnStmt(start_idx=13, expr=VarExpr(start_idx=35, name='a'))])
+    ;                            Now Have Cmd ShowCmd(start_idx=21, expr=CallExpr(start_idx=44, function=VarExpr(start_idx=44, name='f'), arguments=[FalseExpr(start_idx=20)]))
+    ;;8 ,-------showing CallExpr(start_idx=44, function=VarExpr(start_idx=44, name='f'), arguments=[FalseExpr(start_idx=20)])
     
-    ;Start ShowCmd as IntType(start_idx=9) ,NEED 8
+    ;Start ShowCmd as BoolType(start_idx=9) ,NEED 8
     ; NOTICE! Here INSERT a 0 padding for 8 and 8, now have [0]
     ; Start of CallExpr with space 0
     sub rsp, 8 ; align stack by 8, new offset 16,now have [0, 8] in align stack
-    mov rax, [rel const1] ; 2
+    mov rax, [rel const0] ; false
     push rax ;  actually 8 bytes, new offset: 24,now have []
     pop rdi ; rax, actually 8 bytes, new offset: 16,now have []
     call _f
     add rsp, 8 ; remove padding of 8, new offset 8, now have [0]
     push rax ;  actually 8 bytes, new offset: 16,now have []
     ; End of CallExpr
-    lea rdi, [rel const2]
+    lea rdi, [rel const1]
     lea rsi, [rsp]
     call _show
     add rsp, 8 ; push stack ,new offset 8

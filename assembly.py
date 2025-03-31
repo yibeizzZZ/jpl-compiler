@@ -324,26 +324,19 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.append("mov rax, rdx")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '==':
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.extend(cg_expr(expr.right))
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.extend(cg_expr(expr.left))
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
                     lines.append("cmp rax, r10")
                     lines.append("sete al")
                     lines.append("and rax, 1")
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '!=':
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.extend(cg_expr(expr.right))
                     lines.extend(cg_expr(expr.left))
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.extend(stack.pop("r10", 8))
-                    # lines.append(f";--------------------------------------------{stack}")
                     lines.append("cmp rax, r10")
                     lines.append("setne al")
                     lines.append("and rax, 1")
@@ -591,22 +584,19 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         assignments = cc.get_argument_assignments(args_info)
         
         for i, binding in enumerate(cmd.bindings):
-            indicate = -1
             # 为每个参数分配一个栈地址（统一存放在 var_offsets 中）
             if isinstance(binding.type_node, ArrayType):
                 var_addr = -(stack.offset - assignments[i][1] - 8)  # 数组参数用负数偏移
-                func_body.append(f";1;;;;;;;;;;;;we have {cmd.bindings[0].lvalue} ")
-                # if len(cmd.bindings[0].lvalue)>0:
-                #     indicate = next_global_offset
+                func_body.append(f";1;;;;;;;;;;;;we have {cmd.bindings[0]} ")
+                if hasattr(binding.lvalue, "indices"):
+                    for idx in binding.lvalue.indices:
+                        var_offsets[idx] = (var_addr, "local")
             else:
                 var_addr = next_global_offset
             next_global_offset += get_size(binding.type_node)
             assign = assignments[i]
             func_body.append(f";;;;;;;;;;;;;we have {assignments} , i = {i} , offset = {stack.offset}")
             if type_to_str(binding.type_node) == "array":
-                # func_body.extend(sub_rsp(8, "Reserve space for array parameter"))
-                # func_body.append(f"mov r10, [rbp - {var_addr} + 0] ; spill array parameter from rbp to stack")
-                # func_body.append("mov [rsp+ 0], r10")
                 stack.push_reg(assign, 0)
                 func_body.append(f";;---------------------------------{binding.lvalue} ")
                 
@@ -616,6 +606,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 func_body.extend(sub_rsp(8, "Reserve space for float parameter"))
                 func_body.append(f"movsd [rsp], {assign} ; spill float parameter from {assign} to stack")
                 stack.push_reg(assign, 0)
+
             else:
                 func_body.extend(stack.push_reg(assign, 8))
             

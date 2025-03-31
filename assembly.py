@@ -1,6 +1,6 @@
 from typing import Dict, List
 from parser import *
-from typechecker import typecheck_program
+from typechecker import *
 from stack import Stack  
 from callingConvention import *
 from dataclasses import asdict
@@ -589,12 +589,15 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             arg_type = type_to_str(binding.type_node)  
             args_info.append((8, arg_type))  # 假设参数大小为8字节
         assignments = cc.get_argument_assignments(args_info)
-        func_body.append(f";1;;;;;;;;;;;;we have {var_offsets} ")
+        
         for i, binding in enumerate(cmd.bindings):
+            indicate = -1
             # 为每个参数分配一个栈地址（统一存放在 var_offsets 中）
             if isinstance(binding.type_node, ArrayType):
                 var_addr = -(stack.offset - assignments[i][1] - 8)  # 数组参数用负数偏移
-                # var_addr = stack.offset - assignments[i][1] + 16  # 数组参数用负数偏移
+                func_body.append(f";1;;;;;;;;;;;;we have {cmd.bindings[0].lvalue} ")
+                # if len(cmd.bindings[0].lvalue)>0:
+                #     indicate = next_global_offset
             else:
                 var_addr = next_global_offset
             next_global_offset += get_size(binding.type_node)

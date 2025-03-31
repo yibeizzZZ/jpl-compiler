@@ -51,7 +51,7 @@ class CallingConvention:
             offset = self.current_stack_offset
             self.stack_args.append(StackArg(size=16, offset=offset, arg_type=arg_type))
             self.current_stack_offset += 16
-            return ("stack", offset)
+            return ("array", offset)
         
         offset = self.current_stack_offset
         self.stack_args.append(StackArg(size=arg_size, offset=offset, arg_type=arg_type))

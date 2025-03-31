@@ -103,7 +103,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
 
 
             for param_idx, assign in enumerate(assignments):
-                if isinstance(assign, tuple) and assign[0] == "stack":
+                if isinstance(assign, tuple) and assign[0] == "array":
                     lines.append(f"; argument {param_idx} passed on stack at offset {assign[1]}")
                 else:
                     reg = assign  
@@ -121,10 +121,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 retOffset = stack.offset - 32 + stack.padding_stack[-1]
                 lines.append(f"lea rdi, [rsp + {retOffset}]")
             lines.append(f"call _{func_name}")
-            
+            lines.append(f";We have assignments of {assignments}")
             for assign in assignments:
                 if isinstance(assign, tuple) and assign[0] == "stack":
                     lines.extend(add_rsp(8, "free stack argument"))
+                elif isinstance(assign, tuple) and assign[0] == "array":
+                    lines.extend(add_rsp(16, "free stack argument"))
             
             lines.extend(stack.unalign())
             
@@ -587,22 +589,24 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             arg_type = type_to_str(binding.type_node)  
             args_info.append((8, arg_type))  # 假设参数大小为8字节
         assignments = cc.get_argument_assignments(args_info)
-
+        func_body.append(f";1;;;;;;;;;;;;we have {var_offsets} ")
         for i, binding in enumerate(cmd.bindings):
             # 为每个参数分配一个栈地址（统一存放在 var_offsets 中）
             if isinstance(binding.type_node, ArrayType):
-                var_addr = -next_global_offset  # 数组参数用负数偏移
+                var_addr = -(stack.offset - assignments[i][1] - 8)  # 数组参数用负数偏移
+                # var_addr = stack.offset - assignments[i][1] + 16  # 数组参数用负数偏移
             else:
                 var_addr = next_global_offset
             next_global_offset += get_size(binding.type_node)
             assign = assignments[i]
-            func_body.append(f";;;;;;;;;;;;;we have {assignments} , i = {i}")
+            func_body.append(f";;;;;;;;;;;;;we have {assignments} , i = {i} , offset = {stack.offset}")
             if type_to_str(binding.type_node) == "array":
-                func_body.extend(sub_rsp(8, "Reserve space for array parameter"))
-                func_body.append(f"mov r10, [rbp - {var_addr} + 0] ; spill array parameter from rbp to stack")
-                func_body.append("mov [rsp+ 0], r10")
-                stack.push_reg(assign, 16)
-            # 否则如果assign返回的是栈传递，则直接记录
+                # func_body.extend(sub_rsp(8, "Reserve space for array parameter"))
+                # func_body.append(f"mov r10, [rbp - {var_addr} + 0] ; spill array parameter from rbp to stack")
+                # func_body.append("mov [rsp+ 0], r10")
+                stack.push_reg(assign, 0)
+                func_body.append(f";;---------------------------------{binding.lvalue} ")
+                
             elif isinstance(assign, tuple) and assign[0] == "stack":
                 func_body.append(f"; parameter {binding.lvalue.name} passed on stack at offset {assign[1]}")
             elif type_to_str(binding.type_node) == "float":
@@ -611,10 +615,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 stack.push_reg(assign, 0)
             else:
                 func_body.extend(stack.push_reg(assign, 8))
+            
             var_offsets[binding.lvalue.name] = (var_addr, "local")
+            func_body.append(f";;;;;11;;;;;;we have {var_offsets} ")
             
 
-
+        
         total_stack_size = cc.compute_total_stack_size()
         func_body.append(f"; Total stack space for args: {total_stack_size} bytes")
 

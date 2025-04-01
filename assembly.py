@@ -18,7 +18,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     jump_counter = 1
     fail_const = None
     fail_const_mod = None
-    literal_flags: Dict[str, bool] = {}
+ 
     
     def cg_expr(expr , inFunc : bool = False) -> List[str]:
         isIn = inFunc
@@ -42,7 +42,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"mov rax, [rel {lab}] ; false")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
-            lines.append("; VarExpr => local or global")
+            lines.append(f"; VarExpr => local or global for {expr.name}")
             lines.extend(sub_rsp(get_size(expr.resolved_type)))
             if expr.name not in var_offsets:
                 lines.append("; WARNING: variable not found!")
@@ -573,6 +573,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         func_body.append(f"{cmd.name}:")
         func_body.append(f"_{cmd.name}:")
         initial_offset = stack.offset
+        stack.offset = 8
         func_body.extend(stack.push_reg("rbp", 8, comment="Save old rbp"))
         func_body.append("mov rbp, rsp")
         retOffset = stack.offset
@@ -580,7 +581,11 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
  
         stack.push_reg("rdi" , 0)
         stack.push_reg("rdi" , 0)
-
+ 
+        stack.push_reg("rdi" , 0)
+        stack.push_reg("rdi" , 0) 
+        stack.push_reg("rdi" , 0)
+        stack.push_reg("rdi" , 0)
         func_body.append(f";;;;;;;;;;;;;Return offset set to {retOffset}")
 
         cc = CallingConvention()
@@ -662,7 +667,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             else:
                 func_body.extend(cg_expr(stmt, inFunc=True))
             
-        total_local = stack.offset - initial_offset - 8
+        total_local = stack.offset  - 16
         func_body.append(f"add rsp, {total_local} ; Local variables")
 
         while stack.peek()[0] != "rbp":
@@ -694,18 +699,22 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             functions.append(generate_function(cmd))
             
         elif isinstance(cmd, LetCmd):
-            lines = cg_expr(cmd.value )
+            body_lines.append(f";Start LetCmd Line {cmd} for {cmd.value.resolved_type }")
+            lines = cg_expr(cmd.value)
             var_offsets[cmd.lvalue.name] = next_global_offset
             next_global_offset += 8
             if isinstance(cmd.lvalue, ArrayLValue):
+                element = 0
                 for idx in cmd.lvalue.indices:
                     var_offsets[idx] = next_global_offset
-                    next_global_offset += 8
+                    element += 1
+                next_global_offset +=  8 * element
+
             elif isinstance(cmd.value, ArrayLiteralExpr):
-                literal_flags[cmd.lvalue.name] = True
-                next_global_offset += 8  
-            else:
-                literal_flags[cmd.lvalue.name] = False
+                next_global_offset += 8
+            elif isinstance(cmd.value.resolved_type, ArrayType):
+                next_global_offset += 8
+            
             body_lines.extend(lines)
             body_lines.append(";End LetCmd Line\n")
             

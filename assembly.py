@@ -78,7 +78,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                         offset -= 8
                     
             lines.append(f";;; now we have {var_offsets}")
-
         elif expr.__class__.__name__ == "CallExpr":
             # lines.append(f"`````````````````````{stack} ")
 
@@ -438,8 +437,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(add_rsp(total_size, ""))
             lines.extend(stack.push_reg("rax", 8))
             lines.append(f"mov rax, {n}")
-            lines.extend(stack.push_reg("rax", 8))
-                
+            lines.extend(stack.push_reg("rax", 8))             
         elif expr.__class__.__name__ == "IfExpr":
             # 1. 生成条件表达式 E₁ 的代码
             lines.extend(cg_expr(expr.cond, inFunc))
@@ -468,8 +466,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             else_lines = cg_expr(expr.else_branch, inFunc)
             lines.extend(else_lines)
             # 11. END 标签
-            lines.append(f"{end_label}:")        
-                
+            lines.append(f"{end_label}:")               
         elif expr.__class__.__name__ == "ArrayIndexExpr":
             # 1. 生成数组表达式的代码（例如 a），压入数组字面量各个元素
             lines.extend(cg_expr(expr.array, inFunc))
@@ -516,6 +513,74 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.extend(sub_rsp(8, "Allocate space for element"))
                 lines.append("    mov r10, [rax + 0]")
                 lines.append("    mov [rsp + 0], r10")
+        elif expr.__class__.__name__ == "SumLoopExpr":
+            lines = []
+            lines.extend(sub_rsp(8, ";Allocating 8 bytes for the sum "))
+            lines.append(f"; Now have bounds {expr.bounds}")
+            # 1. 生成循环边界表达式的代码（例如 10）
+            for bound in reversed(expr.bounds):
+                lines.extend(cg_expr(bound[1], inFunc))
+                var_offsets[bound[0]] = stack.offset
+                nonlocal next_global_offset
+                next_global_offset += 8
+            # 弹出边界到 rax（8字节）
+            # 检查边界是否为正：如果 rax <= 0，则失败
+            
+            lines.append("mov rax, [rsp]")
+            lines.append("cmp rax, 0")
+            bound_fail_label = f".jump{jump_counter}"
+            jump_counter += 1
+            # 如果 rax > 0，则跳转到正常执行，否则调用 _fail_assertion
+            lines.append(f"jg {bound_fail_label}")
+            lines.extend(stack.align_current())
+            lines.append(f"lea rdi, [rel {get_fail_const_bound()}] ; 'non-positive loop bound'")
+            lines.append("call _fail_assertion")
+            lines.extend(stack.unalign())
+            lines.append(f"{bound_fail_label}:")
+            # 将边界值保存下来供后续比较（重新压入栈中）
+            
+            # 2. 为 sum 分配 8 字节空间，并初始化为 0
+            lines.append("; initialize sum to 0")
+            lines.append("mov rax, 0")
+            lines.append("mov [rsp + 8], rax ")
+            
+            # 3. 初始化循环变量（例如 i）为 0，并压入栈中
+            lines.append("mov rax, 0")
+            lines.extend(stack.push("rax", 8))
+            
+            # 4. 设置循环开始标签
+            loop_label = f".jump{jump_counter}"
+            jump_counter += 1
+            lines.append(f"{loop_label}: ; Begin loop body")
+            
+            # 5. 生成循环体 BODY 的代码
+            body_lines = cg_expr(expr.body, inFunc)
+            lines.extend(body_lines)
+            # 6. 根据 BODY 的类型分别处理整数和浮点情况
+
+            if isinstance(expr.body.resolved_type, IntType):
+                # 对于整数：弹出结果到 rax，然后加到 sum（sum 存放在 [rsp+16]）
+                lines.extend(stack.pop("rax", get_size(expr.body.resolved_type)))
+                lines.append("add [rsp + 16], rax ; add loop body result to sum")
+            elif isinstance(expr.body.resolved_type, FloatType):
+                # 对于浮点：弹出到 xmm0，使用 addsd，再写回内存
+                lines.extend(pop_float_from_stack("xmm0", expr.body.resolved_type))
+                lines.append("addsd xmm0, [rsp + 16]")
+                lines.append("movsd [rsp + 16], xmm0")
+            else:
+                lines.append("/* unsupported loop body type in sum */")
+            
+            # 7. 增加循环变量（i）
+            lines.append("add qword [rsp + 0], 1")
+            # 8. 比较 i 和边界值：如果 i < bound，则继续循环
+            lines.append("mov rax, [rsp + 0]")
+            lines.append("cmp rax, [rsp + 8]")
+            lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
+            # 9. 循环结束后，释放循环变量和边界值各8字节
+            lines.extend(add_rsp(8, "Free loop variable"))
+            lines.extend(add_rsp(8, "Free loop bound"))
+        
+            return lines
 
         else:
             lines.append("/* unhandled expression */")
@@ -584,6 +649,16 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         data_lines.append(f'{label}: db `{type_str}`, 0')
         return label
     
+    def get_fail_const_bound() -> str:
+        nonlocal num_counter
+        key = ("fail", "bound")
+        if key in const_table:
+            return const_table[key]
+        label = f"const{num_counter}"
+        num_counter += 1
+        const_table[key] = label
+        data_lines.append(f"{label}: db `non-positive loop bound`, 0")
+        return label
     def expr_equal(e1, e2) -> bool:
         if type(e1) != type(e2):
             return False

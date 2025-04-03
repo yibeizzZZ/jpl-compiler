@@ -1,1 +1,89 @@
-Compilation failed, 'UnopExpr' object has no attribute 'value'
+global jpl_main
+global _jpl_main
+extern _fail_assertion
+extern _jpl_alloc
+extern _get_time
+extern _show
+extern _print
+extern _print_time
+extern _read_image
+extern _write_image
+extern _fmod
+extern _sqrt
+extern _exp
+extern _sin
+extern _cos
+extern _tan
+extern _asin
+extern _acos
+extern _atan
+extern _log
+extern _pow
+extern _atan2
+extern _to_int
+extern _to_float
+
+section .data
+  const0: dq 10
+  const1: db `non-positive loop bound`, 0
+  const2: db `(IntType)`, 0
+
+section .text
+
+
+jpl_main:
+_jpl_main:
+    push rbp
+    mov rbp, rsp
+    push r12
+    mov r12, rbp ; end of jpl_main prelude
+
+    ;                            Now Have Cmd ShowCmd(start_idx=8, expr=SumLoopExpr(start_idx=17, bounds=[('i', IntExpr(start_idx=13, value=10))], body=VarExpr(start_idx=17, name='i')))
+    ;;8 ,-------showing SumLoopExpr(start_idx=17, bounds=[('i', IntExpr(start_idx=13, value=10))], body=VarExpr(start_idx=17, name='i'))
+    
+    ;Start ShowCmd as IntType(start_idx=17) ,NEED 8
+    ; NOTICE! Here INSERT a 0 padding for 8 and 8, now have [0]
+    sub rsp, 8 ; ;Allocating 8 bytes for the sum  ,new offset 16
+    ; Now have bounds [('i', IntExpr(start_idx=13, value=10))]
+    mov rax, [rel const0] ; 10
+    push rax ;  actually 8 bytes, new offset: 24,now have []
+    mov rax, [rsp]
+    cmp rax, 0
+    jg .jump1
+    sub rsp, 8 ; align *current* stack by 8, new offset 32
+    lea rdi, [rel const1] ; 'non-positive loop bound'
+    call _fail_assertion
+    add rsp, 8 ; remove padding of 8, new offset 24, now have [0]
+    .jump1:
+    ; initialize sum to 0
+    mov rax, 0
+    mov [rsp + 8], rax 
+    mov rax, 0
+    push rax ;  actually 8 bytes, new offset: 32,now have [('rax', 8, 0)]
+    .jump2: ; Begin loop body
+    ; VarExpr => local or global for i
+    sub rsp, 8 ; pop stack ,new offset 40
+    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
+    mov r10, [rbp - 24 + 0]
+    mov [rsp+ 0], r10
+    ;;; now we have {'i': 24}
+    pop rax ; rax, actually 8 bytes, new offset: 32,now have [('rax', 8, 0)]
+    add [rsp + 16], rax ; add loop body result to sum
+    add qword [rsp + 0], 1
+    mov rax, [rsp + 0]
+    cmp rax, [rsp + 8]
+    jl .jump2 ; if loop variable < bound, iterate
+    add rsp, 8 ; Free loop variable ,new offset 24
+    add rsp, 8 ; Free loop bound ,new offset 16
+    lea rdi, [rel const2]
+    lea rsi, [rsp]
+    call _show
+    add rsp, 8 ; push stack ,new offset 8
+    ; NOTICE! Here REMOVE a 0 padding, now have[]
+    ;End of ShowCmd 
+
+    pop r12
+    pop rbp
+    ret
+ 
+Compilation succeeded

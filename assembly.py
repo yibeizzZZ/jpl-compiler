@@ -519,24 +519,25 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"; Now have bounds {expr.bounds}")
             # 1. 生成循环边界表达式的代码（例如 10）
             for bound in reversed(expr.bounds):
+                lines.append(f"; Computing bound for '{bound}'")
                 lines.extend(cg_expr(bound[1], inFunc))
-                var_offsets[bound[0]] = stack.offset
+                var_offsets[bound[0]] = stack.offset + 8
                 nonlocal next_global_offset
                 next_global_offset += 8
             # 弹出边界到 rax（8字节）
             # 检查边界是否为正：如果 rax <= 0，则失败
             
-            lines.append("mov rax, [rsp]")
-            lines.append("cmp rax, 0")
-            bound_fail_label = f".jump{jump_counter}"
-            jump_counter += 1
-            # 如果 rax > 0，则跳转到正常执行，否则调用 _fail_assertion
-            lines.append(f"jg {bound_fail_label}")
-            lines.extend(stack.align_current())
-            lines.append(f"lea rdi, [rel {get_fail_const_bound()}] ; 'non-positive loop bound'")
-            lines.append("call _fail_assertion")
-            lines.extend(stack.unalign())
-            lines.append(f"{bound_fail_label}:")
+                lines.append("mov rax, [rsp]")
+                lines.append("cmp rax, 0")
+                bound_fail_label = f".jump{jump_counter}"
+                jump_counter += 1
+                # 如果 rax > 0，则跳转到正常执行，否则调用 _fail_assertion
+                lines.append(f"jg {bound_fail_label}")
+                lines.extend(stack.align_current())
+                lines.append(f"lea rdi, [rel {get_fail_const_bound()}] ; 'non-positive loop bound'")
+                lines.append("call _fail_assertion")
+                lines.extend(stack.unalign())
+                lines.append(f"{bound_fail_label}:")
             # 将边界值保存下来供后续比较（重新压入栈中）
             
             # 2. 为 sum 分配 8 字节空间，并初始化为 0

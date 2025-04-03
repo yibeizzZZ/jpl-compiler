@@ -26,7 +26,8 @@ extern _to_float
 section .data
   const0: dq 10
   const1: db `non-positive loop bound`, 0
-  const2: db `(IntType)`, 0
+  const2: dq 1
+  const3: db `(IntType)`, 0
 
 section .text
 
@@ -38,13 +39,14 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    ;                            Now Have Cmd ShowCmd(start_idx=8, expr=SumLoopExpr(start_idx=17, bounds=[('i', IntExpr(start_idx=13, value=10))], body=VarExpr(start_idx=17, name='i')))
-    ;;8 ,-------showing SumLoopExpr(start_idx=17, bounds=[('i', IntExpr(start_idx=13, value=10))], body=VarExpr(start_idx=17, name='i'))
+    ;                            Now Have Cmd ShowCmd(start_idx=12, expr=SumLoopExpr(start_idx=25, bounds=[('i', IntExpr(start_idx=13, value=10)), ('j', IntExpr(start_idx=21, value=10))], body=IntExpr(start_idx=25, value=1)))
+    ;;8 ,-------showing SumLoopExpr(start_idx=25, bounds=[('i', IntExpr(start_idx=13, value=10)), ('j', IntExpr(start_idx=21, value=10))], body=IntExpr(start_idx=25, value=1))
     
-    ;Start ShowCmd as IntType(start_idx=17) ,NEED 8
+    ;Start ShowCmd as IntType(start_idx=25) ,NEED 8
     ; NOTICE! Here INSERT a 0 padding for 8 and 8, now have [0]
     sub rsp, 8 ; ;Allocating 8 bytes for the sum  ,new offset 16
-    ; Now have bounds [('i', IntExpr(start_idx=13, value=10))]
+    ; Now have bounds [('i', IntExpr(start_idx=13, value=10)), ('j', IntExpr(start_idx=21, value=10))]
+    ; Computing bound for '('j', IntExpr(start_idx=21, value=10))'
     mov rax, [rel const0] ; 10
     push rax ;  actually 8 bytes, new offset: 24,now have []
     mov rax, [rsp]
@@ -55,33 +57,41 @@ _jpl_main:
     call _fail_assertion
     add rsp, 8 ; remove padding of 8, new offset 24, now have [0]
     .jump1:
+    ; Computing bound for '('i', IntExpr(start_idx=13, value=10))'
+    mov rax, [rel const0] ; 10
+    push rax ;  actually 8 bytes, new offset: 32,now have [('rax', 8, 0)]
+    mov rax, [rsp]
+    cmp rax, 0
+    jg .jump2
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const1] ; 'non-positive loop bound'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump2:
     ; initialize sum to 0
     mov rax, 0
     mov [rsp + 8], rax 
     mov rax, 0
-    push rax ;  actually 8 bytes, new offset: 32,now have [('rax', 8, 0)]
-    .jump2: ; Begin loop body
-    ; VarExpr => local or global for i
-    sub rsp, 8 ; pop stack ,new offset 40
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 24 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'i': 24}
-    pop rax ; rax, actually 8 bytes, new offset: 32,now have [('rax', 8, 0)]
+    push rax ;  actually 8 bytes, new offset: 40,now have [('rax', 8, 0), ('rax', 8, 0)]
+    .jump3: ; Begin loop body
+    mov rax, [rel const2] ; 1
+    push rax ;  actually 8 bytes, new offset: 48,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    pop rax ; rax, actually 8 bytes, new offset: 40,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
     add [rsp + 16], rax ; add loop body result to sum
     add qword [rsp + 0], 1
     mov rax, [rsp + 0]
     cmp rax, [rsp + 8]
-    jl .jump2 ; if loop variable < bound, iterate
-    add rsp, 8 ; Free loop variable ,new offset 24
-    add rsp, 8 ; Free loop bound ,new offset 16
-    lea rdi, [rel const2]
+    jl .jump3 ; if loop variable < bound, iterate
+    add rsp, 8 ; Free loop variable ,new offset 32
+    add rsp, 8 ; Free loop bound ,new offset 24
+    lea rdi, [rel const3]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; push stack ,new offset 8
+    add rsp, 8 ; push stack ,new offset 16
     ; NOTICE! Here REMOVE a 0 padding, now have[]
     ;End of ShowCmd 
 
+    add rsp, 8 ; Local variables ,new offset 8
     pop r12
     pop rbp
     ret

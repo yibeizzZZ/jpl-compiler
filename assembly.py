@@ -18,7 +18,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     jump_counter = 1
     fail_const = None
     fail_const_mod = None
- 
+    global_array_sizes = {}
     
     def cg_expr(expr , inFunc : bool = False) -> List[str]:
         isIn = inFunc
@@ -470,7 +470,53 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # 11. END 标签
             lines.append(f"{end_label}:")        
                 
-        
+        elif expr.__class__.__name__ == "ArrayIndexExpr":
+            # 1. 生成数组表达式的代码（例如 a），压入数组字面量各个元素
+            lines.extend(cg_expr(expr.array, inFunc))
+            # 2. 计算总大小：如果 a 是数组字面量，使用 len(a.elements)*8，否则使用固定值
+            if isinstance(expr.array, VarExpr) and expr.array.name in global_array_sizes:
+                n = global_array_sizes[expr.array.name]
+            else:
+                # 若没有记录，可以设为默认值（或者报错）
+                n = 1
+            total_size = n * 8  # 每个元素8字节
+            # 3. 分配一块 total_size 字节的内存
+            # 4. 将数组的边界（元素个数）压入栈中
+            # 5. 为下标检查预留16字节
+            # 6. 生成下标表达式代码
+            lines.append(f"; We have indexes of  {expr.indexes}")
+            for index in expr.indexes:
+                lines.extend(cg_expr(index , inFunc))
+                # 7. 下标检查：弹出下标到 rax
+                lines.append(f"mov rax, [rsp] ; ")
+                lines.append("cmp rax, 0")
+                neg_label = f".jump{jump_counter}"
+                jump_counter += 1
+                lines.append(f"jge {neg_label}")
+                lines.append(f"lea rdi, [rel {get_index_neg_fail_const()}] ; 'negative array index'")
+                lines.append("call _fail_assertion")
+                lines.append(f"{neg_label}:")
+                lines.append("cmp rax, [rsp + 8]")
+                bound_label = f".jump{jump_counter}"
+                jump_counter += 1
+                lines.append(f"jl {bound_label}")
+                lines.append(f"lea rdi, [rel {get_index_large_fail_const()}] ; 'index too large'")
+                lines.append("call _fail_assertion")
+                lines.append(f"{bound_label}:")
+                # 8. 计算目标元素地址：
+                lines.append("mov rax, 0")
+                lines.append("imul rax, [rsp + 8] ; Multiply by element size (8 bytes)")
+                lines.append("add rax, [rsp + 0] ; Add index value")
+                lines.append("imul rax, 8")
+                lines.append(f"add rax, [rsp + 16] ; Add base array address")
+                # 9. 释放下标和数组副本占用的栈空间
+                lines.extend(add_rsp(8, "Free index"))
+                lines.extend(add_rsp(16, "Free array copy"))
+                # 10. 为元素分配栈空间并复制目标元素数据
+                lines.extend(sub_rsp(8, "Allocate space for element"))
+                lines.append("    mov r10, [rax + 0]")
+                lines.append("    mov [rsp + 0], r10")
+
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")
@@ -507,7 +553,27 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         fail_const_mod = label
         data_lines.append(f"{label}: db `mod by zero`, 0")
         return label
+    def get_index_neg_fail_const() -> str:
+        nonlocal num_counter
+        key = ("fail", "index_neg")
+        if key in const_table:
+            return const_table[key]
+        label = f"const{num_counter}"
+        num_counter += 1
+        const_table[key] = label
+        data_lines.append(f"{label}: db `negative array index`, 0")
+        return label
 
+    def get_index_large_fail_const() -> str:
+        nonlocal num_counter
+        key = ("fail", "index_large")
+        if key in const_table:
+            return const_table[key]
+        label = f"const{num_counter}"
+        num_counter += 1
+        const_table[key] = label
+        data_lines.append(f"{label}: db `index too large`, 0")
+        return label
     def get_type_const(type_str: str) -> str:
         nonlocal num_counter
         if type_str in type_const_table:
@@ -733,8 +799,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     var_offsets[idx] = next_global_offset
                     element += 1
                 next_global_offset +=  8 * element
-
             elif isinstance(cmd.value, ArrayLiteralExpr):
+                global_array_sizes[cmd.lvalue.name] = len(cmd.value.elements)
                 next_global_offset += 8
             elif isinstance(cmd.value.resolved_type, ArrayType):
                 next_global_offset += 8

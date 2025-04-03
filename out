@@ -24,17 +24,9 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 0
-  const1: dq 986
-  const2: dq 26.28
-  const3: dq 74.34
-  const4: dq 44.6
-  const5: db `(BoolType)`, 0
-  const6: dq 4.19
-  const7: dq 89.27
-  const8: dq 92.24
-  const9: dq 58.98
-  const10: dq 19.81
+  const0: dq 1
+  const1: dq 0
+  const2: db `(IntType)`, 0
 
 section .text
 
@@ -46,235 +38,32 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    ;                            Now Have Cmd LetCmd(start_idx=4, lvalue=VarLValue(start_idx=4, name='a'), value=FalseExpr(start_idx=4))
-    ;                            Now Have Cmd LetCmd(start_idx=9, lvalue=VarLValue(start_idx=18, name='b'), value=IntExpr(start_idx=22, value=986))
-    ;                            Now Have Cmd LetCmd(start_idx=21, lvalue=ArrayLValue(start_idx=30, array='c', indices=['d']), value=ArrayLiteralExpr(start_idx=21, elements=[VarExpr(start_idx=38, name='b'), VarExpr(start_idx=41, name='b')]))
-    ;                            Now Have Cmd LetCmd(start_idx=26, lvalue=VarLValue(start_idx=48, name='e'), value=VarExpr(start_idx=52, name='c'))
-    ;                            Now Have Cmd LetCmd(start_idx=34, lvalue=ArrayLValue(start_idx=58, array='f', indices=['g']), value=VarExpr(start_idx=65, name='c'))
-    ;                            Now Have Cmd LetCmd(start_idx=42, lvalue=ArrayLValue(start_idx=71, array='h', indices=['i']), value=VarExpr(start_idx=78, name='e'))
-    ;                            Now Have Cmd ShowCmd(start_idx=59, expr=BinopExpr(start_idx=86, left=FloatExpr(start_idx=86, value=44.6), op=<Binop.EQ: '=='>, right=BinopExpr(start_idx=95, left=FloatExpr(start_idx=95, value=74.34), op=<Binop.DIV: '/'>, right=UnopExpr(start_idx=109, op=<Unop.NEG: '-'>, operand=UnopExpr(start_idx=109, op=<Unop.NEG: '-'>, operand=FloatExpr(start_idx=109, value=26.28))))))
-    ;                            Now Have Cmd ShowCmd(start_idx=83, expr=BinopExpr(start_idx=133, left=UnopExpr(start_idx=133, op=<Unop.NEG: '-'>, operand=BinopExpr(start_idx=133, left=UnopExpr(start_idx=133, op=<Unop.NEG: '-'>, operand=FloatExpr(start_idx=133, value=58.98)), op=<Binop.MOD: '%'>, right=FloatExpr(start_idx=142, value=92.24))), op=<Binop.EQ: '=='>, right=BinopExpr(start_idx=157, left=UnopExpr(start_idx=157, op=<Unop.NEG: '-'>, operand=FloatExpr(start_idx=157, value=89.27)), op=<Binop.MOD: '%'>, right=FloatExpr(start_idx=166, value=4.19))))
-    ;                            Now Have Cmd LetCmd(start_idx=88, lvalue=VarLValue(start_idx=178, name='j'), value=VarExpr(start_idx=182, name='f'))
-    ;                            Now Have Cmd LetCmd(start_idx=93, lvalue=VarLValue(start_idx=188, name='k'), value=FloatExpr(start_idx=192, value=19.81))
-    ;                            Now Have Cmd LetCmd(start_idx=98, lvalue=VarLValue(start_idx=202, name='l'), value=VarExpr(start_idx=206, name='c'))
-    ;                            Now Have Cmd LetCmd(start_idx=106, lvalue=ArrayLValue(start_idx=212, array='m', indices=['n']), value=VarExpr(start_idx=219, name='j'))
-    ;Start LetCmd Line LetCmd(start_idx=4, lvalue=VarLValue(start_idx=4, name='a'), value=FalseExpr(start_idx=4)) for BoolType(start_idx=4)
-    mov rax, [rel const0] ; false
+    ;                            Now Have Cmd ShowCmd(start_idx=7, expr=IfExpr(start_idx=3, cond=TrueExpr(start_idx=3), then_branch=IntExpr(start_idx=18, value=1), else_branch=IntExpr(start_idx=25, value=0)))
+    ;;8 ,-------showing IfExpr(start_idx=3, cond=TrueExpr(start_idx=3), then_branch=IntExpr(start_idx=18, value=1), else_branch=IntExpr(start_idx=25, value=0))
+    
+    ;Start ShowCmd as IntType(start_idx=18) ,NEED 8
+    ; NOTICE! Here INSERT a 0 padding for 8 and 8, now have [0]
+    mov rax, [rel const0] ; true
     push rax ;  actually 8 bytes, new offset: 16,now have []
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=9, lvalue=VarLValue(start_idx=18, name='b'), value=IntExpr(start_idx=22, value=986)) for IntType(start_idx=22)
-    mov rax, [rel const1] ; 986
-    push rax ;  actually 8 bytes, new offset: 24,now have [('rax', 8, 0)]
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=21, lvalue=ArrayLValue(start_idx=30, array='c', indices=['d']), value=ArrayLiteralExpr(start_idx=21, elements=[VarExpr(start_idx=38, name='b'), VarExpr(start_idx=41, name='b')])) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for b
-    sub rsp, 8 ; pop stack ,new offset 32
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 24 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24}
-    ; VarExpr => local or global for b
-    sub rsp, 8 ; pop stack ,new offset 40
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 24 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24}
-    mov rdi, 16   ; total size to allocate
-    sub rsp, 8 ; align *current* stack by 8, new offset 48
-    call _jpl_alloc ;
-    add rsp, 8 ; remove padding of 8, new offset 40, now have []
-    ; Moving 16 bytes from rsp to rax
-        mov r10, [rsp + 8]
-        mov [rax + 8], r10
-        mov r10, [rsp + 0]
-        mov [rax + 0], r10
-    add rsp, 16 ;  ,new offset 24
-    push rax; new offset: 32 ,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    mov rax, 2
-    push rax; new offset: 40 ,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=26, lvalue=VarLValue(start_idx=48, name='e'), value=VarExpr(start_idx=52, name='c')) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for c
-    sub rsp, 16 ; pop stack ,new offset 56
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 40 + 8]
-    mov [rsp+ 8], r10
-    mov r10, [rbp - 40 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24, 'c': 32, 'd': 32}
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=34, lvalue=ArrayLValue(start_idx=58, array='f', indices=['g']), value=VarExpr(start_idx=65, name='c')) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for c
-    sub rsp, 16 ; pop stack ,new offset 72
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 40 + 8]
-    mov [rsp+ 8], r10
-    mov r10, [rbp - 40 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24, 'c': 32, 'd': 32, 'e': 48}
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=42, lvalue=ArrayLValue(start_idx=71, array='h', indices=['i']), value=VarExpr(start_idx=78, name='e')) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for e
-    sub rsp, 16 ; pop stack ,new offset 88
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 56 + 8]
-    mov [rsp+ 8], r10
-    mov r10, [rbp - 56 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24, 'c': 32, 'd': 32, 'e': 48, 'f': 56, 'g': 56}
-    ;End LetCmd Line
-
-    ;;88 ,-------showing BinopExpr(start_idx=86, left=FloatExpr(start_idx=86, value=44.6), op=<Binop.EQ: '=='>, right=BinopExpr(start_idx=95, left=FloatExpr(start_idx=95, value=74.34), op=<Binop.DIV: '/'>, right=UnopExpr(start_idx=109, op=<Unop.NEG: '-'>, operand=UnopExpr(start_idx=109, op=<Unop.NEG: '-'>, operand=FloatExpr(start_idx=109, value=26.28)))))
-    
-    ;Start ShowCmd as BoolType(start_idx=86) ,NEED 8
-    ; NOTICE! Here INSERT a 0 padding for 88 and 8, now have [0]
-    mov rax, [rel const2] ; 26.28
-    push rax ;  actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    movsd xmm1, [rsp]
-    add rsp, 8 ; Remove alignment ,new offset 88
-    pxor xmm0, xmm0
-    subsd xmm0, xmm1
-    sub rsp, 8 ; Add alignment ,new offset 96
-    movsd [rsp], xmm0
-    movsd xmm1, [rsp]
-    add rsp, 8 ; Remove alignment ,new offset 88
-    pxor xmm0, xmm0
-    subsd xmm0, xmm1
-    sub rsp, 8 ; Add alignment ,new offset 96
-    movsd [rsp], xmm0
-    mov rax, [rel const3] ; 74.34
-    push rax ;  actually 8 bytes, new offset: 104,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    movsd xmm0, [rsp]
-    add rsp, 8 ;  ,new offset 96
-    movsd xmm1, [rsp]
-    add rsp, 8 ;  ,new offset 88
-    divsd xmm0, xmm1
-    sub rsp, 8 ;  ,new offset 96
-    movsd [rsp], xmm0 ; xxx
-    mov rax, [rel const4] ; 44.6
-    push rax ;  actually 8 bytes, new offset: 104,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    movsd xmm0, [rsp]
-    add rsp, 8 ;  ,new offset 96
-    movsd xmm1, [rsp]
-    add rsp, 8 ;  ,new offset 88
-    cmpeqsd xmm0, xmm1
-    movq rax, xmm0
-    and rax, 1
-    push rax ;  actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    lea rdi, [rel const5]
+    pop rax ; rax, actually 8 bytes, new offset: 8,now have []
+    cmp rax, 0
+    je .jump1
+    mov rax, [rel const0] ; 1
+    push rax ;  actually 8 bytes, new offset: 16,now have []
+    add rsp, 8 ; Decrement stack by size of return type after THEN branch ,new offset 8
+    add rsp, 8 ; Pop 1 item from shadow stack ,new offset 0
+    jmp .jump2
+    .jump1:
+    mov rax, [rel const1] ; 0
+    push rax ;  actually 8 bytes, new offset: 8,now have [('rax', 8, 0)]
+    .jump2:
+    lea rdi, [rel const2]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; push stack ,new offset 88
+    add rsp, 8 ; push stack ,new offset 0
     ; NOTICE! Here REMOVE a 0 padding, now have[]
     ;End of ShowCmd 
 
-    ;;88 ,-------showing BinopExpr(start_idx=133, left=UnopExpr(start_idx=133, op=<Unop.NEG: '-'>, operand=BinopExpr(start_idx=133, left=UnopExpr(start_idx=133, op=<Unop.NEG: '-'>, operand=FloatExpr(start_idx=133, value=58.98)), op=<Binop.MOD: '%'>, right=FloatExpr(start_idx=142, value=92.24))), op=<Binop.EQ: '=='>, right=BinopExpr(start_idx=157, left=UnopExpr(start_idx=157, op=<Unop.NEG: '-'>, operand=FloatExpr(start_idx=157, value=89.27)), op=<Binop.MOD: '%'>, right=FloatExpr(start_idx=166, value=4.19)))
-    
-    ;Start ShowCmd as BoolType(start_idx=133) ,NEED 8
-    ; NOTICE! Here INSERT a 0 padding for 88 and 8, now have [0]
-    sub rsp, 8 ; align *current* stack by 8, new offset 96
-    mov rax, [rel const6] ; 4.19
-    push rax ;  actually 8 bytes, new offset: 104,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    mov rax, [rel const7] ; 89.27
-    push rax ;  actually 8 bytes, new offset: 112,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    movsd xmm1, [rsp]
-    add rsp, 8 ; Remove alignment ,new offset 104
-    pxor xmm0, xmm0
-    subsd xmm0, xmm1
-    sub rsp, 8 ; Add alignment ,new offset 112
-    movsd [rsp], xmm0
-    movsd xmm0, [rsp]
-    add rsp, 8 ;  ,new offset 104
-    movsd xmm1, [rsp]
-    add rsp, 8 ;  ,new offset 96
-    call _fmod
-    add rsp, 8 ; remove padding of 8, new offset 88, now have [0]
-    sub rsp, 8 ;  ,new offset 96
-    movsd [rsp], xmm0 ; xxx
-    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
-    mov rax, [rel const8] ; 92.24
-    push rax ;  actually 8 bytes, new offset: 104,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    mov rax, [rel const9] ; 58.98
-    push rax ;  actually 8 bytes, new offset: 112,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    movsd xmm1, [rsp]
-    add rsp, 8 ; Remove alignment ,new offset 104
-    pxor xmm0, xmm0
-    subsd xmm0, xmm1
-    sub rsp, 8 ; Add alignment ,new offset 112
-    movsd [rsp], xmm0
-    movsd xmm0, [rsp]
-    add rsp, 8 ;  ,new offset 104
-    movsd xmm1, [rsp]
-    add rsp, 8 ;  ,new offset 96
-    call _fmod
-    ; NOTICE! Here REMOVE a 0 padding, now have[0]
-    sub rsp, 8 ;  ,new offset 104
-    movsd [rsp], xmm0 ; xxx
-    movsd xmm1, [rsp]
-    add rsp, 8 ; Remove alignment ,new offset 96
-    pxor xmm0, xmm0
-    subsd xmm0, xmm1
-    sub rsp, 8 ; Add alignment ,new offset 104
-    movsd [rsp], xmm0
-    movsd xmm0, [rsp]
-    add rsp, 8 ;  ,new offset 96
-    movsd xmm1, [rsp]
-    add rsp, 8 ;  ,new offset 88
-    cmpeqsd xmm0, xmm1
-    movq rax, xmm0
-    and rax, 1
-    push rax ;  actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    lea rdi, [rel const5]
-    lea rsi, [rsp]
-    call _show
-    add rsp, 8 ; push stack ,new offset 88
-    ; NOTICE! Here REMOVE a 0 padding, now have[]
-    ;End of ShowCmd 
-
-    ;Start LetCmd Line LetCmd(start_idx=88, lvalue=VarLValue(start_idx=178, name='j'), value=VarExpr(start_idx=182, name='f')) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for f
-    sub rsp, 16 ; pop stack ,new offset 104
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 64 + 8]
-    mov [rsp+ 8], r10
-    mov r10, [rbp - 64 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24, 'c': 32, 'd': 32, 'e': 48, 'f': 56, 'g': 56, 'h': 72, 'i': 72}
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=93, lvalue=VarLValue(start_idx=188, name='k'), value=FloatExpr(start_idx=192, value=19.81)) for FloatType(start_idx=192)
-    mov rax, [rel const10] ; 19.81
-    push rax ;  actually 8 bytes, new offset: 112,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=98, lvalue=VarLValue(start_idx=202, name='l'), value=VarExpr(start_idx=206, name='c')) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for c
-    sub rsp, 16 ; pop stack ,new offset 128
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 40 + 8]
-    mov [rsp+ 8], r10
-    mov r10, [rbp - 40 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24, 'c': 32, 'd': 32, 'e': 48, 'f': 56, 'g': 56, 'h': 72, 'i': 72, 'j': 88, 'k': 96}
-    ;End LetCmd Line
-
-    ;Start LetCmd Line LetCmd(start_idx=106, lvalue=ArrayLValue(start_idx=212, array='m', indices=['n']), value=VarExpr(start_idx=219, name='j')) for ArrayType(start_idx=21, element_type=IntType(start_idx=22), dimension=1)
-    ; VarExpr => local or global for j
-    sub rsp, 16 ; pop stack ,new offset 144
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 96 + 8]
-    mov [rsp+ 8], r10
-    mov r10, [rbp - 96 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'a': 16, 'b': 24, 'c': 32, 'd': 32, 'e': 48, 'f': 56, 'g': 56, 'h': 72, 'i': 72, 'j': 88, 'k': 96, 'l': 104}
-    ;End LetCmd Line
-
-    add rsp, 136 ; Local variables ,new offset 8
     pop r12
     pop rbp
     ret

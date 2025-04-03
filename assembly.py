@@ -27,8 +27,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lab = get_const(expr.value, "int")
             lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
-            
-            
         elif expr.__class__.__name__ == "FloatExpr":
             lab = get_const(expr.value, "float")
             lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
@@ -80,7 +78,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                         offset -= 8
                     
             lines.append(f";;; now we have {var_offsets}")
-   
 
         elif expr.__class__.__name__ == "CallExpr":
             # lines.append(f"`````````````````````{stack} ")
@@ -149,8 +146,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 
             lines.append("; End of CallExpr")
-            
-
         elif expr.__class__.__name__ == "UnopExpr":
             if expr.op.value == '-':
                 if isinstance(expr.operand.resolved_type, FloatType):
@@ -416,7 +411,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
                     lines.append("/* unhandled binary operator */")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
-
         elif expr.__class__.__name__ == "ArrayLiteralExpr":
             n = len(expr.elements)
             if isinstance(expr.resolved_type.element_type, (IntType, FloatType, BoolType)):
@@ -446,7 +440,37 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"mov rax, {n}")
             lines.extend(stack.push_reg("rax", 8))
                 
+        elif expr.__class__.__name__ == "IfExpr":
+            # 1. 生成条件表达式 E₁ 的代码
+            lines.extend(cg_expr(expr.cond, inFunc))
+            # 2. 从栈中弹出条件值到 rax（BoolType 为 8 字节）
+            lines.extend(stack.pop("rax", get_size(expr.cond.resolved_type)))
+            # 3. 比较 rax 是否为 0
+            lines.append("cmp rax, 0")
+            # 4. 设置 ELSE 分支和 END 分支的跳转标签
+            else_label = f".jump{jump_counter}"
+            jump_counter += 1
+            end_label = f".jump{jump_counter}"
+            jump_counter += 1
+            # 5. 条件为假时跳转到 ELSE 分支
+            lines.append(f"je {else_label}")
+            # 6. 生成 then 分支 E₂ 的代码
+            then_lines = cg_expr(expr.then_branch, inFunc)
+            lines.extend(then_lines)
+            # 7. 调整栈：减少返回值大小（根据 then 分支返回类型）并模拟从 shadow stack 弹出 8 字节
+            ret_size = get_size(expr.then_branch.resolved_type)
+            add_rsp(ret_size, "Decrement stack by size of return type after THEN branch")
+            # 8. then 分支结束后跳转到 END 标签
+            lines.append(f"jmp {end_label}")
+            # 9. ELSE 分支标签
+            lines.append(f"{else_label}:")
+            # 10. 生成 else 分支 E₃ 的代码
+            else_lines = cg_expr(expr.else_branch, inFunc)
+            lines.extend(else_lines)
+            # 11. END 标签
+            lines.append(f"{end_label}:")        
                 
+        
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")

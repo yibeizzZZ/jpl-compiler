@@ -40,6 +40,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         elif expr.__class__.__name__ == "VarExpr":
             lines.append(f"; VarExpr => local or global for {expr.resolved_type}")
             lines.extend(sub_rsp(get_size(expr)))
+            if expr.name == "argnum" and expr.name not in var_offsets:
+                    var_offsets["argnum"] = -16
+                
+                    
             if expr.name not in var_offsets:
                 lines.append("; WARNING: variable not found!")
             else:
@@ -842,14 +846,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         func_body.append("mov rbp, rsp")
         retOffset = stack.offset
         # func_body.append(f";;;;;NEEDING PUSH RDI{isinstance(cmd.return_type,(ArrayType)) or len(cmd.bindings) > 0}")
- 
         stack.push_reg("rdi" , 0)
-        stack.push_reg("rdi" , 0)
- 
         stack.push_reg("rdi" , 0)
         stack.push_reg("rdi" , 0) 
         stack.push_reg("rdi" , 0)
         stack.push_reg("rdi" , 0)
+
         func_body.append(f";;;;;;;;;;;;;Return offset set to {retOffset}")
 
         cc = CallingConvention()
@@ -952,6 +954,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     prologue_lines.append("mov r12, rbp ; end of jpl_main prelude\n")
     stack.offset += 8
 
+    stack.push_reg("arg" , 0)
     
     epilogue_lines = []
     
@@ -986,9 +989,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             body_lines.append(f";;{stack.offset} ,-------showing {cmd.expr}")
             body_lines.append(f"\n    ;Start ShowCmd as {cmd.expr.resolved_type} ,NEED {get_size(cmd.expr)}")
             body_lines.extend(stack.align(get_size(cmd.expr)))
-        
             body_lines.extend(cg_expr(cmd.expr))
-            
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
             body_lines += [
                 f"lea rdi, [rel {type_lab}]",

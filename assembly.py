@@ -515,19 +515,19 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append("    mov [rsp + 0], r10")
         elif expr.__class__.__name__ == "SumLoopExpr":
             lines = []
-            lines.extend(sub_rsp(8, ";Allocating 8 bytes for the sum "))
-            lines.append(f"; Now have bounds {expr.bounds}")
+            
+            lines.extend(sub_rsp(get_size(expr.body), f";Allocating 8 bytes for the sum as {expr.body}"))
+            lines.append(f"; Now have size {get_size(expr.body)}  bounds {expr.bounds}")
             # 1. 生成循环边界表达式的代码（例如 10）
             # for bound in reversed(expr.bounds):
             for bound in reversed(expr.bounds):
                 lines.append(f"; Computing bound for '{bound}'")
                 lines.extend(cg_expr(bound[1], inFunc))
-                var_offsets[bound[0]] = stack.offset + 8
-                nonlocal next_global_offset
-                next_global_offset += 8
+                # nonlocal next_global_offset
+                # next_global_offset += 8
+                # var_offsets[bound[0]] = stack.offset + 8
             # 弹出边界到 rax（8字节）
             # 检查边界是否为正：如果 rax <= 0，则失败
-            
                 lines.append("mov rax, [rsp]")
                 lines.append("cmp rax, 0")
                 bound_fail_label = f".jump{jump_counter}"
@@ -550,17 +550,20 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             for bound in reversed(expr.bounds):
                 lines.append("mov rax, 0")
                 lines.extend(stack.push("rax", 8))
+                nonlocal next_global_offset
+                next_global_offset += 8
+                var_offsets[bound[0]] = stack.offset
             
             # 4. 设置循环开始标签
             loop_label = f".jump{jump_counter}"
             jump_counter += 1
-            lines.append(f"{loop_label}: ; Begin loop body we have vars {var_offsets}")
+            lines.append(f"{loop_label}: ; ")
             
             # 5. 生成循环体 BODY 的代码
             body_lines = cg_expr(expr.body, inFunc)
             lines.extend(body_lines)
             # 6. 根据 BODY 的类型分别处理整数和浮点情况
-
+            lines.append(f" ;fffff WE HAVE  {var_offsets}")
             if isinstance(expr.body.resolved_type, IntType):
                 # 对于整数：弹出结果到 rax，然后加到 sum（sum 存放在 [rsp+16]）
                 lines.extend(stack.pop("rax", get_size(expr.body.resolved_type)))
@@ -582,7 +585,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append(f";;;;;;;;;;;;;;;;;;bound now is {bound} , has {var_offsets[bound[0]]} , stack start at {var_offsets[expr.bounds[0][0]]}")
                 offset =-(var_offsets[bound[0]] - var_offsets[expr.bounds[0][0]])
                 lines.append(f"mov rax, [rsp + {offset}]")
-                lines.append(f"cmp rax, [rsp +{(offset + len(expr.bounds) * 8)}]")
+                lines.append(f"cmp rax, [rsp + {(offset + len(expr.bounds) * 8)}]")
                 lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
                 if length > 1:
                     lines.append(f"mov qword [rsp + {offset}], 0")

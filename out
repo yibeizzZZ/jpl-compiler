@@ -70,28 +70,37 @@ _jpl_main:
     .jump2:
     ; initialize sum to 0
     mov rax, 0
-    mov [rsp + 8], rax 
+    mov [rsp + 16], rax 
     mov rax, 0
     push rax ;  actually 8 bytes, new offset: 40,now have [('rax', 8, 0), ('rax', 8, 0)]
-    .jump3: ; Begin loop body
-    mov rax, [rel const2] ; 1
+    mov rax, 0
     push rax ;  actually 8 bytes, new offset: 48,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    pop rax ; rax, actually 8 bytes, new offset: 40,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    add [rsp + 16], rax ; add loop body result to sum
-    add qword [rsp + 0], 1
-    mov rax, [rsp + 0]
-    cmp rax, [rsp + 8]
+    .jump3: ; Begin loop body we have vars {'j': 32, 'i': 40}
+    mov rax, [rel const2] ; 1
+    push rax ;  actually 8 bytes, new offset: 56,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    pop rax ; rax, actually 8 bytes, new offset: 48,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    add [rsp + 32], rax ; add loop body result to sum
+    add qword [rsp + 8], 1
+    ;;;;;;;;;;;;;;;;;;bound now is ('j', IntExpr(start_idx=21, value=10)) , has 32 , stack start at 40
+    mov rax, [rsp + 8]
+    cmp rax, [rsp +24]
     jl .jump3 ; if loop variable < bound, iterate
-    add rsp, 8 ; Free loop variable ,new offset 32
-    add rsp, 8 ; Free loop bound ,new offset 24
+    mov qword [rsp + 8], 0
+    add qword [rsp + 16], 1
+    ;;;;;;;;;;;;;;;;;;bound now is ('i', IntExpr(start_idx=13, value=10)) , has 40 , stack start at 40
+    mov rax, [rsp + 0]
+    cmp rax, [rsp +16]
+    jl .jump3 ; if loop variable < bound, iterate
+    add rsp, 8 ; Free loop variable ,new offset 40
+    add rsp, 8 ; Free loop bound ,new offset 32
     lea rdi, [rel const3]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; push stack ,new offset 16
+    add rsp, 8 ; push stack ,new offset 24
     ; NOTICE! Here REMOVE a 0 padding, now have[]
     ;End of ShowCmd 
 
-    add rsp, 8 ; Local variables ,new offset 8
+    add rsp, 16 ; Local variables ,new offset 8
     pop r12
     pop rbp
     ret

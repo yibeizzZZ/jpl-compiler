@@ -518,6 +518,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(sub_rsp(8, ";Allocating 8 bytes for the sum "))
             lines.append(f"; Now have bounds {expr.bounds}")
             # 1. 生成循环边界表达式的代码（例如 10）
+            # for bound in reversed(expr.bounds):
             for bound in reversed(expr.bounds):
                 lines.append(f"; Computing bound for '{bound}'")
                 lines.extend(cg_expr(bound[1], inFunc))
@@ -543,16 +544,17 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # 2. 为 sum 分配 8 字节空间，并初始化为 0
             lines.append("; initialize sum to 0")
             lines.append("mov rax, 0")
-            lines.append("mov [rsp + 8], rax ")
+            lines.append(f"mov [rsp + {len(expr.bounds)  * 8}], rax ")
             
             # 3. 初始化循环变量（例如 i）为 0，并压入栈中
-            lines.append("mov rax, 0")
-            lines.extend(stack.push("rax", 8))
+            for bound in reversed(expr.bounds):
+                lines.append("mov rax, 0")
+                lines.extend(stack.push("rax", 8))
             
             # 4. 设置循环开始标签
             loop_label = f".jump{jump_counter}"
             jump_counter += 1
-            lines.append(f"{loop_label}: ; Begin loop body")
+            lines.append(f"{loop_label}: ; Begin loop body we have vars {var_offsets}")
             
             # 5. 生成循环体 BODY 的代码
             body_lines = cg_expr(expr.body, inFunc)
@@ -562,24 +564,33 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             if isinstance(expr.body.resolved_type, IntType):
                 # 对于整数：弹出结果到 rax，然后加到 sum（sum 存放在 [rsp+16]）
                 lines.extend(stack.pop("rax", get_size(expr.body.resolved_type)))
-                lines.append("add [rsp + 16], rax ; add loop body result to sum")
+                lines.append(f"add [rsp + {2 * len(expr.bounds) * 8}], rax ; add loop body result to sum")
             elif isinstance(expr.body.resolved_type, FloatType):
                 # 对于浮点：弹出到 xmm0，使用 addsd，再写回内存
                 lines.extend(pop_float_from_stack("xmm0", expr.body.resolved_type))
-                lines.append("addsd xmm0, [rsp + 16]")
-                lines.append("movsd [rsp + 16], xmm0")
+                lines.append(f"addsd xmm0, [rsp + {2 * len(expr.bounds) * 8}]")
+                lines.append(f"movsd [rsp + {2 * len(expr.bounds) * 8}], xmm0")
             else:
                 lines.append("/* unsupported loop body type in sum */")
             
             # 7. 增加循环变量（i）
-            lines.append("add qword [rsp + 0], 1")
+            lines.append(f"add qword [rsp + {len(expr.bounds) * 8  - 8}], 1")
             # 8. 比较 i 和边界值：如果 i < bound，则继续循环
-            lines.append("mov rax, [rsp + 0]")
-            lines.append("cmp rax, [rsp + 8]")
-            lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
+            
+            length = len(expr.bounds)
+            for bound in reversed(expr.bounds):
+                lines.append(f";;;;;;;;;;;;;;;;;;bound now is {bound} , has {var_offsets[bound[0]]} , stack start at {var_offsets[expr.bounds[0][0]]}")
+                offset =-(var_offsets[bound[0]] - var_offsets[expr.bounds[0][0]])
+                lines.append(f"mov rax, [rsp + {offset}]")
+                lines.append(f"cmp rax, [rsp +{(offset + len(expr.bounds) * 8)}]")
+                lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
+                if length > 1:
+                    lines.append(f"mov qword [rsp + {offset}], 0")
+                    lines.append(f"add qword [rsp + {offset - 8}], 1") # 这两个还没想好怎么弄
+                    length -= 1
             # 9. 循环结束后，释放循环变量和边界值各8字节
-            lines.extend(add_rsp(8, "Free loop variable"))
-            lines.extend(add_rsp(8, "Free loop bound"))
+            lines.extend(add_rsp(8 * len(expr.bounds), "Free loop variable"))
+            lines.extend(add_rsp(8 * len(expr.bounds), "Free loop bound"))
         
             return lines
 

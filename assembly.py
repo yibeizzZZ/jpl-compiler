@@ -16,8 +16,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
     epilogue_lines = []
     functions = []
     jump_counter = 1
-    fail_const = None
-    fail_const_mod = None
     global_array_sizes = {}
     
     def cg_expr(expr , inFunc : bool = False) -> List[str]:
@@ -40,8 +38,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"mov rax, [rel {lab}] ; false")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
-            lines.append(f"; VarExpr => local or global for {expr.name}")
-            lines.extend(sub_rsp(get_size(expr.resolved_type)))
+            lines.append(f"; VarExpr => local or global for {expr.resolved_type}")
+            lines.extend(sub_rsp(get_size(expr)))
             if expr.name not in var_offsets:
                 lines.append("; WARNING: variable not found!")
             else:
@@ -60,9 +58,13 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                             lines.append(f"mov [rsp+ {target_offset}], r10")
                     else:
                         stored_offset = value
+                        
                         offset = get_size(expr.resolved_type) - 8
-                        while offset >= 0:
+                        if offset > 16:
+                            start = f"rbp - {var_offsets[expr.name]}"
+                        else:  
                             start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
+                        while offset >= 0:
                             lines.append(f"mov r10, [{start} + {offset}]")
                             lines.append(f"mov [rsp+ {offset}], r10")
                             offset -= 8
@@ -77,7 +79,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                         lines.append(f"mov [rsp+ {offset}], r10")
                         offset -= 8
                     
-            lines.append(f";;; now we have {var_offsets}")
         elif expr.__class__.__name__ == "CallExpr":
             # lines.append(f"`````````````````````{stack} ")
 
@@ -298,7 +299,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     label_div = f".jump{jump_counter}"
                     jump_counter += 1
                     lines.append(f"jne {label_div}")
-                    fail_label = get_fail_const()
+                    fail_label = get_fail_const("divide by zero")
 
                     lines.extend(stack.align_current())
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'divide by zero'")
@@ -318,7 +319,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     label_mod = f".jump{jump_counter}"
                     jump_counter += 1
                     lines.append(f"jne {label_mod}")
-                    fail_label = get_fail_const_mod()
+                    fail_label = get_fail_const("mod by zero")
                     lines.extend(stack.align_current())
                     lines.append(f"lea rdi, [rel {fail_label}] ; 'mod by zero'")
                     lines.append("call _fail_assertion")
@@ -469,6 +470,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"{end_label}:")               
         elif expr.__class__.__name__ == "ArrayIndexExpr":
             # 1. 生成数组表达式的代码（例如 a），压入数组字面量各个元素
+            lines.append(f";---we have {expr.resolved_type}")
             lines.extend(cg_expr(expr.array, inFunc))
             # 2. 计算总大小：如果 a 是数组字面量，使用 len(a.elements)*8，否则使用固定值
             if isinstance(expr.array, VarExpr) and expr.array.name in global_array_sizes:
@@ -482,37 +484,50 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # 5. 为下标检查预留16字节
             # 6. 生成下标表达式代码
             lines.append(f"; We have indexes of  {expr.indexes}")
-            for index in expr.indexes:
+            GAP = get_size(expr)
+            count = 0
+            for index in reversed(expr.indexes):
                 lines.extend(cg_expr(index , inFunc))
                 # 7. 下标检查：弹出下标到 rax
-                lines.append(f"mov rax, [rsp] ; ")
+            for index in expr.indexes:
+                lines.append(f"mov rax, [rsp + {count * 8}]")
                 lines.append("cmp rax, 0")
                 neg_label = f".jump{jump_counter}"
                 jump_counter += 1
                 lines.append(f"jge {neg_label}")
-                lines.append(f"lea rdi, [rel {get_index_neg_fail_const()}] ; 'negative array index'")
+                lines.append(f"lea rdi, [rel {get_fail_const("negative array index")}] ; 'negative array index'")
                 lines.append("call _fail_assertion")
                 lines.append(f"{neg_label}:")
-                lines.append("cmp rax, [rsp + 8]")
+                lines.append(f"cmp rax, [rsp + {GAP + count * 8}]")
                 bound_label = f".jump{jump_counter}"
                 jump_counter += 1
                 lines.append(f"jl {bound_label}")
-                lines.append(f"lea rdi, [rel {get_index_large_fail_const()}] ; 'index too large'")
+                lines.append(f"lea rdi, [rel {get_fail_const("index too large")}] ; 'index too large'")
                 lines.append("call _fail_assertion")
                 lines.append(f"{bound_label}:")
-                # 8. 计算目标元素地址：
-                lines.append("mov rax, 0")
-                lines.append("imul rax, [rsp + 8] ; Multiply by element size (8 bytes)")
-                lines.append("add rax, [rsp + 0] ; Add index value")
-                lines.append("imul rax, 8")
-                lines.append(f"add rax, [rsp + 16] ; Add base array address")
-                # 9. 释放下标和数组副本占用的栈空间
-                lines.extend(add_rsp(8, "Free index"))
-                lines.extend(add_rsp(16, "Free array copy"))
-                # 10. 为元素分配栈空间并复制目标元素数据
-                lines.extend(sub_rsp(8, "Allocate space for element"))
-                lines.append("    mov r10, [rax + 0]")
-                lines.append("    mov [rsp + 0], r10")
+                count += 1
+
+                
+                
+                
+            offset = 0
+            lines.append("mov rax, 0")
+            count = 0
+            for index in expr.indexes:
+                lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes)")
+                lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
+                count += 1
+            lines.append(f"imul rax, {get_size(expr.resolved_type)}")
+            lines.append(f"add rax, [rsp + {offset + count * 8 + GAP}] ; Add base array address")
+            # 9. 释放下标和数组副本占用的栈空间
+            for index in expr.indexes:
+                lines.extend(add_rsp(get_size(index), "Free index"))
+            lines.extend(add_rsp(len(expr.indexes) * get_size(expr.resolved_type) + get_size(expr.resolved_type), f"Free array copy {expr}"))
+            # 10. 为元素分配栈空间并复制目标元素数据
+            lines.extend(sub_rsp(8, "Allocate space for element"))
+            lines.append("    mov r10, [rax + 0]")
+            lines.append("    mov [rsp + 0], r10")
+            
         elif expr.__class__.__name__ == "SumLoopExpr":
             lines = []
             
@@ -523,22 +538,10 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             for bound in reversed(expr.bounds):
                 lines.append(f"; Computing bound for '{bound}'")
                 lines.extend(cg_expr(bound[1], inFunc))
-                # nonlocal next_global_offset
-                # next_global_offset += 8
-                # var_offsets[bound[0]] = stack.offset + 8
-            # 弹出边界到 rax（8字节）
-            # 检查边界是否为正：如果 rax <= 0，则失败
+                
                 lines.append("mov rax, [rsp]")
                 lines.append("cmp rax, 0")
-                bound_fail_label = f".jump{jump_counter}"
-                jump_counter += 1
-                # 如果 rax > 0，则跳转到正常执行，否则调用 _fail_assertion
-                lines.append(f"jg {bound_fail_label}")
-                lines.extend(stack.align_current())
-                lines.append(f"lea rdi, [rel {get_fail_const_bound()}] ; 'non-positive loop bound'")
-                lines.append("call _fail_assertion")
-                lines.extend(stack.unalign())
-                lines.append(f"{bound_fail_label}:")
+                lines.extend(assert_code("non-positive loop bound"))
             # 将边界值保存下来供后续比较（重新压入栈中）
             
             # 2. 为 sum 分配 8 字节空间，并初始化为 0
@@ -596,13 +599,116 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.extend(add_rsp(8 * len(expr.bounds), "Free loop bound"))
         
             return lines
+        elif expr.__class__.__name__ == "ArrayLoopExpr":
+            
+            # 假设表达式形如: array [i : E_bound] BODY
+            lines = []
+            lines.append(f";;;;Array loop for {expr}")
+            # --- 分配堆空间 ---
+            # 1. 添加对栈的对齐：先增加8字节对齐
+            # 2. 为指针预留8字节空间
+            lines.extend(sub_rsp(8, "Allocating 8 bytes for pointer"))
+            # 3. 生成循环边界 E_bound（例如256）的代码
+            #    注意：这里应让 E_bound 走 cg_expr，它会生成常量，形成 dq 常量输出
+            for bound in reversed(expr.bounds):
+                lines.append(f"; Computing bound for '{bound}'")
+                lines.extend(cg_expr(bound[1], inFunc))
+                lines.append("mov rax, [rsp]")
+                lines.append("cmp rax, 0")
+                lines.extend(assert_code("non-positive loop bound"))
+
+            # 5. 边界值仍留在栈上；计算总大小 = sizeof(IntType)*bound
+            lines.append(f"mov rdi, {get_size(expr.body)} ; =====================")
+            index = 0
+            for bound in expr.bounds:
+                lines.append(f"imul rdi, [rsp + {index*8}] ; multiply by bound")
+                lines.extend(assert_code("overflow computing array size" , jump_sign = "jno"))
+                index += 1
+
+
+            # 6. 调用 _jpl_alloc 分配堆内存，返回的指针存入 rax
+            lines.extend(stack.align_current())
+            lines.append("call _jpl_alloc")
+            lines.extend(stack.unalign())
+            # 7. 将分配的指针存入预留的指针空间，即 [rsp + 8]
+            lines.append(f"mov [rsp + {len(expr.bounds) * 8}], rax ; Move to pre-allocated space")
+            
+            # --- 初始化循环 ---
+            # 8. 初始化循环变量 i 为 0；这里同时将循环变量的栈偏移记录到 var_offsets 中
+            
+            for bound in reversed(expr.bounds):
+                lines.append("mov rax, 0")
+                lines.extend(stack.push("rax", 8))
+
+                next_global_offset += 8
+                var_offsets[bound[0]] = stack.offset
+                
+            # 9. 设置循环开始标签
+            loop_label = f".jump{jump_counter}"
+            jump_counter += 1
+            lines.append(f"{loop_label}: ; Begin loop body")
+            
+            # --- 生成循环体 ---
+            # 10. 生成循环体 BODY 的代码（例如 BODY 为 VarExpr "i"）
+            body_code = cg_expr(expr.body, inFunc)
+            lines.extend(body_code)
+            # 11. 计算目标元素存储地址：
+            #     计算公式：target = ( ( (bound_value * 8) + index_value ) * 8 ) + pointer
+            offset = get_size(expr.body.resolved_type)
+            rank = len (expr.bounds)
+            GAP = 0
+            for index in expr.bounds:
+                GAP += get_size(index[1])
+            # GAP = get_size(expr.resolved_type)
+            lines.append("mov rax, 0")
+            count = 0
+            for index in expr.bounds:
+                lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes)")
+                lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
+                count += 1
+                
+            lines.append(f"imul rax, {get_size(expr.body.resolved_type)}")
+            lines.append(f"add rax, [rsp + {offset + count * 8 + GAP}] ; Add base array address")
+            
+
+            # 12. 将循环体的计算结果复制到目标位置
+            while offset > 0:
+                offset -= 8
+                lines.append(f"mov r10, [rsp + {offset}] ; get loop body result")
+                lines.append(f"mov [rax + {offset}], r10")
+                
+            # 13. 释放用于循环体计算占用的空间（例如，如果 BODY 产生了8字节数据）
+            lines.extend(add_rsp(get_size(expr.body.resolved_type), f"Free loop body result from {expr}"))
+            # 14. 增加循环变量
+            lines.append(f"add qword [rsp + {len(expr.bounds) * 8  - 8}], 1")
+            length = len(expr.bounds)
+            lines.append(f";---STACK CHECK FOR {var_offsets}")
+            for bound in reversed(expr.bounds):
+                offset =-(var_offsets[bound[0]] - var_offsets[expr.bounds[0][0]])
+                lines.append(f"mov rax, [rsp + {offset}]")
+                lines.append(f"cmp rax, [rsp + {(offset + len(expr.bounds) * 8)}]")
+                lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
+                if length > 1:
+                    lines.append(f"mov qword [rsp + {offset}], 0")
+                    lines.append(f"add qword [rsp + {offset - 8}], 1") # 这两个还没想好怎么弄
+                    length -= 1
+                # pass
+            
+            # 15. 比较循环变量 i 与边界值
+            # 这里注意：实际情况中，边界值可能存放在固定位置，比如 [rsp + offset]，请根据你的栈管理做调整
+
+            
+            # --- 循环结束后 ---
+            # 16. 释放循环变量和边界值以及指针空间（共24字节）
+            lines.extend(add_rsp(get_size(expr) - 8))
+
+            return lines
 
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         return lines
-    
     def get_const(value, kind: str) -> str:
         nonlocal num_counter
         key = (kind, value)
@@ -613,46 +719,15 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         const_table[key] = label
         data_lines.append(f"{label}: dq {value}")
         return label
-
-    def get_fail_const() -> str:
-        nonlocal num_counter, fail_const
-        if fail_const is not None:
-            return fail_const
-        label = f"const{num_counter}"
-        num_counter += 1
-        fail_const = label
-        data_lines.append(f"{label}: db `divide by zero`, 0")
-        return label
-
-    def get_fail_const_mod() -> str:
-        nonlocal num_counter, fail_const_mod
-        if fail_const_mod is not None:
-            return fail_const_mod
-        label = f"const{num_counter}"
-        num_counter += 1
-        fail_const_mod = label
-        data_lines.append(f"{label}: db `mod by zero`, 0")
-        return label
-    def get_index_neg_fail_const() -> str:
+    def get_fail_const(reason : str) -> str:
         nonlocal num_counter
-        key = ("fail", "index_neg")
+        key = ("fail", reason)
         if key in const_table:
             return const_table[key]
         label = f"const{num_counter}"
         num_counter += 1
         const_table[key] = label
-        data_lines.append(f"{label}: db `negative array index`, 0")
-        return label
-
-    def get_index_large_fail_const() -> str:
-        nonlocal num_counter
-        key = ("fail", "index_large")
-        if key in const_table:
-            return const_table[key]
-        label = f"const{num_counter}"
-        num_counter += 1
-        const_table[key] = label
-        data_lines.append(f"{label}: db `index too large`, 0")
+        data_lines.append(f"{label}: db `{reason}`, 0")
         return label
     def get_type_const(type_str: str) -> str:
         nonlocal num_counter
@@ -662,17 +737,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         num_counter += 1
         type_const_table[type_str] = label
         data_lines.append(f'{label}: db `{type_str}`, 0')
-        return label
-    
-    def get_fail_const_bound() -> str:
-        nonlocal num_counter
-        key = ("fail", "bound")
-        if key in const_table:
-            return const_table[key]
-        label = f"const{num_counter}"
-        num_counter += 1
-        const_table[key] = label
-        data_lines.append(f"{label}: db `non-positive loop bound`, 0")
         return label
     def expr_equal(e1, e2) -> bool:
         if type(e1) != type(e2):
@@ -689,14 +753,12 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             return
         stack.offset += n
         return [f"sub rsp, {n} ; {comment} ,new offset {stack.offset}"]
-
     def add_rsp(n: int, comment: str = "push stack") -> List[str]:
         if n == 0:
             return
         stack.offset -= n
         
         return [f"add rsp, {n} ; {comment} ,new offset {stack.offset}"]
-    
     def type_to_str(type_node):
         if isinstance(type_node, (IntType, BoolType)):
             return "int"
@@ -712,11 +774,21 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             raise Exception(f"Unsupported type: {type(type_node).__name__}")
     def get_size(type_node: TypeNode) -> int:
         if isinstance(type_node, (ArrayType)):
-            return 16
+            return 8 + type_node.dimension * 8
         elif isinstance(type_node, (IntType, FloatType, BoolType)):
             return 8
         elif isinstance(type_node, (VoidType , StructType)):
             raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
+        elif isinstance(type_node, (ArrayLoopExpr)):
+            size = 0
+            for bound in type_node.bounds:
+                size += get_size(bound[1])
+            return size + 8
+        elif isinstance(type_node, (ArrayIndexExpr)):
+            size = 0
+            for index in type_node.indexes:
+                size += get_size(index)
+            return size
         else:
             return get_size(type_node.resolved_type)
         
@@ -724,7 +796,19 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         
         return stack.unalign()
     
+    def assert_code(message: str , jump_sign: str = "jg") -> List[str]:
+        nonlocal jump_counter
+        code = []
 
+        label = f".jump{jump_counter}"
+        jump_counter += 1
+        code.append(f"{jump_sign} {label}")
+        code.extend(stack.align_current())
+        code.append(f"lea rdi, [rel {get_fail_const(message)}] ; '{message}'")
+        code.append("call _fail_assertion")
+        code.extend(stack.unalign())
+        code.append(f"{label}:")
+        return code
     def pop_float_from_stack(reg: str, type_node: TypeNode) -> List[str]:
         size = get_size(type_node)
         stack.pop(reg, size)
@@ -911,6 +995,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 "lea rsi, [rsp]",
                 "call _show"
             ]
+            body_lines.append(f";Get size of {cmd.expr.resolved_type} and is {get_size(cmd.expr.resolved_type)}")
             body_lines.extend(add_rsp(get_size(cmd.expr.resolved_type)))
             body_lines.extend(stack.unalign())
             body_lines.append(f";End of ShowCmd \n")

@@ -24,9 +24,13 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 65536
+  const0: dq 100
   const1: db `non-positive loop bound`, 0
-  const2: db `(IntType)`, 0
+  const2: db `overflow computing array size`, 0
+  const3: dq 0
+  const4: db `negative array index`, 0
+  const5: db `index too large`, 0
+  const6: db `(IntType)`, 0
 
 section .text
 
@@ -38,15 +42,13 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    ;                            Now Have Cmd ShowCmd(start_idx=27, expr=SumLoopExpr(start_idx=140, bounds=[('i', IntExpr(start_idx=100, value=65536)), ('j', IntExpr(start_idx=111, value=65536)), ('k', IntExpr(start_idx=122, value=65536)), ('l', IntExpr(start_idx=133, value=65536))], body=BinopExpr(start_idx=140, left=BinopExpr(start_idx=140, left=BinopExpr(start_idx=140, left=VarExpr(start_idx=140, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=144, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=148, name='k')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=152, name='l'))))
-    ;;8 ,-------showing SumLoopExpr(start_idx=140, bounds=[('i', IntExpr(start_idx=100, value=65536)), ('j', IntExpr(start_idx=111, value=65536)), ('k', IntExpr(start_idx=122, value=65536)), ('l', IntExpr(start_idx=133, value=65536))], body=BinopExpr(start_idx=140, left=BinopExpr(start_idx=140, left=BinopExpr(start_idx=140, left=VarExpr(start_idx=140, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=144, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=148, name='k')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=152, name='l')))
-    
-    ;Start ShowCmd as IntType(start_idx=140) ,NEED 8
-    ; NOTICE! Here INSERT a 0 padding for 8 and 8, now have [0]
-    sub rsp, 8 ; ;Allocating 8 bytes for the sum as BinopExpr(start_idx=140, left=BinopExpr(start_idx=140, left=BinopExpr(start_idx=140, left=VarExpr(start_idx=140, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=144, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=148, name='k')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=152, name='l')) ,new offset 16
-    ; Now have size 8  bounds [('i', IntExpr(start_idx=100, value=65536)), ('j', IntExpr(start_idx=111, value=65536)), ('k', IntExpr(start_idx=122, value=65536)), ('l', IntExpr(start_idx=133, value=65536))]
-    ; Computing bound for '('l', IntExpr(start_idx=133, value=65536))'
-    mov rax, [rel const0] ; 65536
+    ;                            Now Have Cmd LetCmd(start_idx=22, lvalue=VarLValue(start_idx=4, name='a'), value=ArrayLoopExpr(start_idx=41, bounds=[('i', IntExpr(start_idx=18, value=100)), ('j', IntExpr(start_idx=27, value=100)), ('k', IntExpr(start_idx=36, value=100))], body=BinopExpr(start_idx=41, left=BinopExpr(start_idx=41, left=VarExpr(start_idx=41, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=45, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=49, name='k'))))
+    ;                            Now Have Cmd ShowCmd(start_idx=32, expr=ArrayIndexExpr(start_idx=56, array=VarExpr(start_idx=56, name='a'), indexes=[IntExpr(start_idx=58, value=0), IntExpr(start_idx=61, value=0), IntExpr(start_idx=64, value=0)]))
+    ;Start LetCmd Line LetCmd(start_idx=22, lvalue=VarLValue(start_idx=4, name='a'), value=ArrayLoopExpr(start_idx=41, bounds=[('i', IntExpr(start_idx=18, value=100)), ('j', IntExpr(start_idx=27, value=100)), ('k', IntExpr(start_idx=36, value=100))], body=BinopExpr(start_idx=41, left=BinopExpr(start_idx=41, left=VarExpr(start_idx=41, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=45, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=49, name='k')))) for ArrayType(start_idx=41, element_type=IntType(start_idx=41), dimension=3)
+    ;;;;Array loop for ArrayLoopExpr(start_idx=41, bounds=[('i', IntExpr(start_idx=18, value=100)), ('j', IntExpr(start_idx=27, value=100)), ('k', IntExpr(start_idx=36, value=100))], body=BinopExpr(start_idx=41, left=BinopExpr(start_idx=41, left=VarExpr(start_idx=41, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=45, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=49, name='k')))
+    sub rsp, 8 ; Allocating 8 bytes for pointer ,new offset 16
+    ; Computing bound for '('k', IntExpr(start_idx=36, value=100))'
+    mov rax, [rel const0] ; 100
     push rax ;  actually 8 bytes, new offset: 24,now have []
     mov rax, [rsp]
     cmp rax, 0
@@ -54,10 +56,10 @@ _jpl_main:
     sub rsp, 8 ; align *current* stack by 8, new offset 32
     lea rdi, [rel const1] ; 'non-positive loop bound'
     call _fail_assertion
-    add rsp, 8 ; remove padding of 8, new offset 24, now have [0]
+    add rsp, 8 ; remove padding of 8, new offset 24, now have []
     .jump1:
-    ; Computing bound for '('k', IntExpr(start_idx=122, value=65536))'
-    mov rax, [rel const0] ; 65536
+    ; Computing bound for '('j', IntExpr(start_idx=27, value=100))'
+    mov rax, [rel const0] ; 100
     push rax ;  actually 8 bytes, new offset: 32,now have [('rax', 8, 0)]
     mov rax, [rsp]
     cmp rax, 0
@@ -65,10 +67,10 @@ _jpl_main:
     ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
     lea rdi, [rel const1] ; 'non-positive loop bound'
     call _fail_assertion
-    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    ; NOTICE! Here REMOVE a 0 padding, now have[]
     .jump2:
-    ; Computing bound for '('j', IntExpr(start_idx=111, value=65536))'
-    mov rax, [rel const0] ; 65536
+    ; Computing bound for '('i', IntExpr(start_idx=18, value=100))'
+    mov rax, [rel const0] ; 100
     push rax ;  actually 8 bytes, new offset: 40,now have [('rax', 8, 0), ('rax', 8, 0)]
     mov rax, [rsp]
     cmp rax, 0
@@ -76,102 +78,173 @@ _jpl_main:
     sub rsp, 8 ; align *current* stack by 8, new offset 48
     lea rdi, [rel const1] ; 'non-positive loop bound'
     call _fail_assertion
-    add rsp, 8 ; remove padding of 8, new offset 40, now have [0]
+    add rsp, 8 ; remove padding of 8, new offset 40, now have []
     .jump3:
-    ; Computing bound for '('i', IntExpr(start_idx=100, value=65536))'
-    mov rax, [rel const0] ; 65536
-    push rax ;  actually 8 bytes, new offset: 48,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    mov rax, [rsp]
-    cmp rax, 0
-    jg .jump4
-    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
-    lea rdi, [rel const1] ; 'non-positive loop bound'
+    mov rdi, 8 ; =====================
+    imul rdi, [rsp + 0] ; multiply by bound
+    jno .jump4
+    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    lea rdi, [rel const2] ; 'overflow computing array size'
     call _fail_assertion
-    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    add rsp, 8 ; remove padding of 8, new offset 40, now have []
     .jump4:
-    ; initialize sum to 0
+    imul rdi, [rsp + 8] ; multiply by bound
+    jno .jump5
+    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    lea rdi, [rel const2] ; 'overflow computing array size'
+    call _fail_assertion
+    add rsp, 8 ; remove padding of 8, new offset 40, now have []
+    .jump5:
+    imul rdi, [rsp + 16] ; multiply by bound
+    jno .jump6
+    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    lea rdi, [rel const2] ; 'overflow computing array size'
+    call _fail_assertion
+    add rsp, 8 ; remove padding of 8, new offset 40, now have []
+    .jump6:
+    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    call _jpl_alloc
+    add rsp, 8 ; remove padding of 8, new offset 40, now have []
+    mov [rsp + 24], rax ; Move to pre-allocated space
     mov rax, 0
-    mov [rsp + 32], rax 
+    push rax ;  actually 8 bytes, new offset: 48,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
     mov rax, 0
     push rax ;  actually 8 bytes, new offset: 56,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
     mov rax, 0
     push rax ;  actually 8 bytes, new offset: 64,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    mov rax, 0
-    push rax ;  actually 8 bytes, new offset: 72,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    mov rax, 0
-    push rax ;  actually 8 bytes, new offset: 80,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    .jump5: ; 
-    ; VarExpr => local or global for l
-    sub rsp, 8 ; pop stack ,new offset 88
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 32 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'l': 32, 'k': 40, 'j': 48, 'i': 56}
-    ; VarExpr => local or global for k
-    sub rsp, 8 ; pop stack ,new offset 96
-    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
-    mov r10, [rbp - 40 + 0]
-    mov [rsp+ 0], r10
-    ;;; now we have {'l': 32, 'k': 40, 'j': 48, 'i': 56}
-    ; VarExpr => local or global for j
-    sub rsp, 8 ; pop stack ,new offset 104
+    .jump7: ; Begin loop body
+    ; VarExpr => local or global for IntType(start_idx=41)
+    sub rsp, 8 ; pop stack ,new offset 72
     ; ;;;;;;;;;;;;;;LOCAL!!!!!!
     mov r10, [rbp - 48 + 0]
     mov [rsp+ 0], r10
-    ;;; now we have {'l': 32, 'k': 40, 'j': 48, 'i': 56}
-    ; VarExpr => local or global for i
-    sub rsp, 8 ; pop stack ,new offset 112
+    ; VarExpr => local or global for IntType(start_idx=41)
+    sub rsp, 8 ; pop stack ,new offset 80
     ; ;;;;;;;;;;;;;;LOCAL!!!!!!
     mov r10, [rbp - 56 + 0]
     mov [rsp+ 0], r10
-    ;;; now we have {'l': 32, 'k': 40, 'j': 48, 'i': 56}
-    pop rax ; rax, actually 8 bytes, new offset: 104,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    pop r10 ; rax, actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    ; VarExpr => local or global for IntType(start_idx=41)
+    sub rsp, 8 ; pop stack ,new offset 88
+    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
+    mov r10, [rbp - 64 + 0]
+    mov [rsp+ 0], r10
+    pop rax ; rax, actually 8 bytes, new offset: 80,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    pop r10 ; rax, actually 8 bytes, new offset: 72,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
     add rax, r10
-    push rax ;  actually 8 bytes, new offset: 104,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    pop rax ; rax, actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    pop r10 ; rax, actually 8 bytes, new offset: 88,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    push rax ;  actually 8 bytes, new offset: 80,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    pop rax ; rax, actually 8 bytes, new offset: 72,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    pop r10 ; rax, actually 8 bytes, new offset: 64,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
     add rax, r10
-    push rax ;  actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    pop rax ; rax, actually 8 bytes, new offset: 88,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    pop r10 ; rax, actually 8 bytes, new offset: 80,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    add rax, r10
-    push rax ;  actually 8 bytes, new offset: 88,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-     ;fffff WE HAVE  {'l': 32, 'k': 40, 'j': 48, 'i': 56}
-    pop rax ; rax, actually 8 bytes, new offset: 80,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
-    add [rsp + 64], rax ; add loop body result to sum
-    add qword [rsp + 24], 1
-    ;;;;;;;;;;;;;;;;;;bound now is ('l', IntExpr(start_idx=133, value=65536)) , has 32 , stack start at 56
-    mov rax, [rsp + 24]
-    cmp rax, [rsp + 56]
-    jl .jump5 ; if loop variable < bound, iterate
-    mov qword [rsp + 24], 0
+    push rax ;  actually 8 bytes, new offset: 72,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    mov rax, 0
+    imul rax, [rsp + 32] ; Multiply by element size (8 bytes)
+    add rax, [rsp +  8] ; Add index value
+    imul rax, [rsp + 40] ; Multiply by element size (8 bytes)
+    add rax, [rsp +  16] ; Add index value
+    imul rax, [rsp + 48] ; Multiply by element size (8 bytes)
+    add rax, [rsp +  24] ; Add index value
+    imul rax, 8
+    add rax, [rsp + 56] ; Add base array address
+    mov r10, [rsp + 0] ; get loop body result
+    mov [rax + 0], r10
+    add rsp, 8 ; Free loop body result from ArrayLoopExpr(start_idx=41, bounds=[('i', IntExpr(start_idx=18, value=100)), ('j', IntExpr(start_idx=27, value=100)), ('k', IntExpr(start_idx=36, value=100))], body=BinopExpr(start_idx=41, left=BinopExpr(start_idx=41, left=VarExpr(start_idx=41, name='i'), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=45, name='j')), op=<Binop.PLUS: '+'>, right=VarExpr(start_idx=49, name='k'))) ,new offset 64
     add qword [rsp + 16], 1
-    ;;;;;;;;;;;;;;;;;;bound now is ('k', IntExpr(start_idx=122, value=65536)) , has 40 , stack start at 56
+    ;---STACK CHECK FOR {'k': 48, 'j': 56, 'i': 64}
     mov rax, [rsp + 16]
-    cmp rax, [rsp + 48]
-    jl .jump5 ; if loop variable < bound, iterate
+    cmp rax, [rsp + 40]
+    jl .jump7 ; if loop variable < bound, iterate
     mov qword [rsp + 16], 0
     add qword [rsp + 8], 1
-    ;;;;;;;;;;;;;;;;;;bound now is ('j', IntExpr(start_idx=111, value=65536)) , has 48 , stack start at 56
     mov rax, [rsp + 8]
-    cmp rax, [rsp + 40]
-    jl .jump5 ; if loop variable < bound, iterate
+    cmp rax, [rsp + 32]
+    jl .jump7 ; if loop variable < bound, iterate
     mov qword [rsp + 8], 0
     add qword [rsp + 0], 1
-    ;;;;;;;;;;;;;;;;;;bound now is ('i', IntExpr(start_idx=100, value=65536)) , has 56 , stack start at 56
     mov rax, [rsp + 0]
+    cmp rax, [rsp + 24]
+    jl .jump7 ; if loop variable < bound, iterate
+    add rsp, 24 ; push stack ,new offset 40
+    ;End LetCmd Line
+
+    ;;40 ,-------showing ArrayIndexExpr(start_idx=56, array=VarExpr(start_idx=56, name='a'), indexes=[IntExpr(start_idx=58, value=0), IntExpr(start_idx=61, value=0), IntExpr(start_idx=64, value=0)])
+    
+    ;Start ShowCmd as IntType(start_idx=41) ,NEED 24
+    ; NOTICE! Here INSERT a 0 padding for 40 and 24, now have [0]
+    ;---we have IntType(start_idx=41)
+    ; VarExpr => local or global for ArrayType(start_idx=41, element_type=IntType(start_idx=41), dimension=3)
+    sub rsp, 32 ; pop stack ,new offset 72
+    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
+    mov r10, [rbp - 40 + 24]
+    mov [rsp+ 24], r10
+    mov r10, [rbp - 40 + 16]
+    mov [rsp+ 16], r10
+    mov r10, [rbp - 40 + 8]
+    mov [rsp+ 8], r10
+    mov r10, [rbp - 40 + 0]
+    mov [rsp+ 0], r10
+    ; We have indexes of  [IntExpr(start_idx=58, value=0), IntExpr(start_idx=61, value=0), IntExpr(start_idx=64, value=0)]
+    mov rax, [rel const3] ; 0
+    push rax ;  actually 8 bytes, new offset: 80,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    mov rax, [rel const3] ; 0
+    push rax ;  actually 8 bytes, new offset: 88,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    mov rax, [rel const3] ; 0
+    push rax ;  actually 8 bytes, new offset: 96,now have [('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    mov rax, [rsp + 0]
+    cmp rax, 0
+    jge .jump8
+    lea rdi, [rel const4] ; 'negative array index'
+    call _fail_assertion
+    .jump8:
+    cmp rax, [rsp + 24]
+    jl .jump9
+    lea rdi, [rel const5] ; 'index too large'
+    call _fail_assertion
+    .jump9:
+    mov rax, [rsp + 8]
+    cmp rax, 0
+    jge .jump10
+    lea rdi, [rel const4] ; 'negative array index'
+    call _fail_assertion
+    .jump10:
     cmp rax, [rsp + 32]
-    jl .jump5 ; if loop variable < bound, iterate
-    add rsp, 32 ; Free loop variable ,new offset 48
-    add rsp, 32 ; Free loop bound ,new offset 16
-    lea rdi, [rel const2]
+    jl .jump11
+    lea rdi, [rel const5] ; 'index too large'
+    call _fail_assertion
+    .jump11:
+    mov rax, [rsp + 16]
+    cmp rax, 0
+    jge .jump12
+    lea rdi, [rel const4] ; 'negative array index'
+    call _fail_assertion
+    .jump12:
+    cmp rax, [rsp + 40]
+    jl .jump13
+    lea rdi, [rel const5] ; 'index too large'
+    call _fail_assertion
+    .jump13:
+    mov rax, 0
+    imul rax, [rsp + 24] ; Multiply by element size (8 bytes)
+    add rax, [rsp +  0] ; Add index value
+    imul rax, [rsp + 32] ; Multiply by element size (8 bytes)
+    add rax, [rsp +  8] ; Add index value
+    imul rax, [rsp + 40] ; Multiply by element size (8 bytes)
+    add rax, [rsp +  16] ; Add index value
+    imul rax, 8
+    add rax, [rsp + 48] ; Add base array address
+    add rsp, 8 ; Free index ,new offset 88
+    add rsp, 16 ; Free array copy ,new offset 72
+    sub rsp, 8 ; Allocate space for element ,new offset 80
+        mov r10, [rax + 0]
+        mov [rsp + 0], r10
+    lea rdi, [rel const6]
     lea rsi, [rsp]
     call _show
-    add rsp, 8 ; push stack ,new offset 8
+    ;Get size of IntType(start_idx=41) and is 8
+    add rsp, 24 ; push stack ,new offset 56
     ; NOTICE! Here REMOVE a 0 padding, now have[]
     ;End of ShowCmd 
 
+    add rsp, 48 ; Local variables ,new offset 8
     pop r12
     pop rbp
     ret

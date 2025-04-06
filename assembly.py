@@ -56,15 +56,15 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                             else:
                                 effective = stored_offset
                             target_offset = get_size(expr.resolved_type) - 8 - i
-                            lines.append(f"mov r10, [rbp - {effective}]")
-                            lines.append(f"mov [rsp+ {target_offset}], r10")
+                            lines.append(f"    mov r10, [rbp - {effective}]")
+                            lines.append(f"    mov [rsp + {target_offset}], r10")
                     else:
                         stored_offset = value
                         offset = get_size(expr.resolved_type) - 8
                         while offset >= 0:
                             start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
-                            lines.append(f"mov r10, [{start} + {offset}]")
-                            lines.append(f"mov [rsp+ {offset}], r10")
+                            lines.append(f"    mov r10, [{start} + {offset}]")
+                            lines.append(f"    mov [rsp + {offset}], r10")
                             offset -= 8
 
                     # stack.push(value[0] , get_size(expr.resolved_type))
@@ -74,7 +74,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                     while offset >= 0:
                         start = f"r12 - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
                         lines.append(f"mov r10, [{start} + {offset}]")
-                        lines.append(f"mov [rsp+ {offset}], r10")
+                        lines.append(f"mov [rsp + {offset}], r10")
                         offset -= 8
                     
             lines.append(f";;; now we have {var_offsets}")
@@ -514,8 +514,6 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append("    mov r10, [rax + 0]")
                 lines.append("    mov [rsp + 0], r10")
         elif expr.__class__.__name__ == "SumLoopExpr":
-            lines = []
-            
             lines.extend(sub_rsp(get_size(expr.body), f";Allocating 8 bytes for the sum as {expr.body}"))
             lines.append(f"; Now have size {get_size(expr.body)}  bounds {expr.bounds}")
             # 1. 生成循环边界表达式的代码（例如 10）
@@ -597,12 +595,123 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         
             return lines
 
+        elif expr.__class__.__name__ == "ArrayLoopExpr": 
+            dim_names = [var for var, _ in expr.bounds]
+            n = len(expr.bounds)
+            lines.extend(sub_rsp(get_size(expr.body)))
+            lines.append(f"; Now have size {get_size(expr.body)}  bounds {expr.bounds}")
+            
+            # === Step 1: Evaluate each bound in REVERSE and check positivity ===
+            for i, (var_name, bound_expr) in enumerate(reversed(expr.bounds)):
+                lines.append(f"; Evaluate bound for {var_name} in reverse")
+                # Evaluate the bound expression and push result on stack.
+                lines.extend(cg_expr(bound_expr, inFunc))
+                # Check positivity.
+                lines.append("mov rax, [rsp]      ; load bound into rax")
+                lines.append("cmp rax, 0")
+                bound_fail_label = f".jump{jump_counter}"
+                jump_counter += 1
+                lines.append(f"jg {bound_fail_label}")  # If >0, skip failure.
+                lines.extend(stack.align_current())
+                lines.append(f"lea rdi, [rel {get_fail_const_bound()}] ; 'non-positive loop bound'")
+                lines.append("call _fail_assertion")
+                lines.extend(stack.unalign())
+                lines.append(f"{bound_fail_label}:")
+            
+            # === Step 2: Compute total array size ===
+            # Multiply the element size with each bound.
+            elem_size = get_size(expr.body.resolved_type)  # e.g., 8 for int
+            lines.append(f"mov rdi, {elem_size}    ; base size for array element")
+            for i in range(n):
+                offset = i * 8  # each bound is 8 bytes
+                lines.append(f"imul rdi, [rsp + {offset}]")
+                overflow_label = f".jump{jump_counter}"
+                jump_counter += 1
+                lines.append(f"jno {overflow_label}")
+                lines.extend(stack.align_current())
+                lines.append(f"lea rdi, [rel {get_overflow_fail_const()}] ; 'overflow computing array size'")
+                lines.append("call _fail_assertion")
+                lines.extend(stack.unalign())
+                lines.append(f"{overflow_label}:")
+            
+            # === Step 3: Allocate memory with _jpl_alloc ===
+            lines.extend(stack.align_current())
+            lines.append("call _jpl_alloc")   # The allocated pointer is now in rax.
+            lines.extend(stack.unalign())
+            
+            # Store the allocated pointer after the bound values.
+            pointer_offset = n * 8
+            lines.append(f"mov [rsp + {pointer_offset}], rax ; store allocated pointer")
+            
+            # === Step 4: Initialize loop variables to 0 ===
+            for bound in reversed(expr.bounds):
+                lines.append("mov rax, 0")
+                lines.extend(stack.push("rax", 8))
+                var_offsets[bound[0]] = stack.offset
+            
+            # === Step 5: Generate loop body (Array (2/4) and Array (3/4)) ===
+            loop_label = f".jump{jump_counter}"
+            jump_counter += 1
+            lines.append(f"{loop_label}: ; begin array loop body")
+            
+            # (A) Evaluate BODY expression; its result is pushed onto the stack.
+            lines.extend(cg_expr(expr.body, inFunc))
+            body_size = get_size(expr.body.resolved_type)
+            
+            # 1) 加载循环变量
+            lines.append("; Index to store in")
+            lines.append("mov rax, 0")
+            loop_offsets = [8 * (n + d) for d in range(n)]
+            bound_offsets = [8 * (2 * n + d) for d in range(n)]
+            base_ptr_offset = 8 * (3 * n)
+            for d in range(n):
+                lines.append(f"imul rax, [rsp + {bound_offsets[d]}]   ; multiply by bound for dimension {d}")
+                lines.append(f"add rax, [rsp + {loop_offsets[d]}]   ; add loop variable for dimension {d}")
+            lines.append(f"imul rax, {elem_size}   ; multiply by element size")
+            lines.append(f"add rax, [rsp + {base_ptr_offset}]   ; add array base pointer")
+
+            lines.append(f"; Move body ({body_size} bytes) to index")
+            lines.append(f"; Moving {body_size} bytes from rsp to rax ")
+            for offset in range(body_size - 8, -1, -8):
+                lines.append(f"    mov r10, [rsp + {offset}]   ; load 8 bytes from rsp+{offset}")
+                lines.append(f"    mov [rax + {offset}], r10   ; store into destination at offset {offset}")
+            lines.extend(add_rsp(body_size, "free BODY result from stack"))
+            
+            lines.append(f"; Increment '{dim_names[d]}'")
+            lines.append(f"add qword [rsp + {len(expr.bounds) * 8  - 8}], 1")
+            
+            length = len(expr.bounds)
+            for bound in reversed(expr.bounds):
+                lines.append(f";;;;;;;;;;;;;;;;;;bound now is {bound} , has {var_offsets[bound[0]]} , stack start at {var_offsets[expr.bounds[0][0]]}")
+                offset =-(var_offsets[bound[0]] - var_offsets[expr.bounds[0][0]])
+                lines.append(f"mov rax, [rsp + {offset}]")
+                lines.append(f"cmp rax, [rsp + {(offset + len(expr.bounds) * 8)}]")
+                lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
+                if length > 1:
+                    lines.append(f"mov qword [rsp + {offset}], 0")
+                    lines.append(f"add qword [rsp + {offset - 8}], 1") # 这两个还没想好怎么弄
+                    length -= 1
+            lines.append("; End body of loop")
+            lines.append("; Free all loop variables")
+            lines.extend(add_rsp(body_size, "free BODY result from stack"))
+            return lines
         else:
             lines.append("/* unhandled expression */")
             lines.append("mov rax, 0")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         return lines
     
+    def get_overflow_fail_const() -> str:
+        nonlocal num_counter
+        key = ("fail", "overflow")
+        if key in const_table:
+            return const_table[key]
+        label = f"const{num_counter}"
+        num_counter += 1
+        const_table[key] = label
+        data_lines.append(f"{label}: db `overflow computing array size`, 0")
+        return label
+
     def get_const(value, kind: str) -> str:
         nonlocal num_counter
         key = (kind, value)
@@ -907,6 +1016,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             
             type_lab = get_type_const(cmd.expr.resolved_type.to_s_expression())
             body_lines += [
+                " ",
+                " ",
                 f"lea rdi, [rel {type_lab}]",
                 "lea rsi, [rsp]",
                 "call _show"

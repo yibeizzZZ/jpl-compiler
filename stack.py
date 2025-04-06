@@ -32,7 +32,6 @@ class Stack:
         return instructions
 
     def align_current(self) -> List[str]:
-
         alignment_instructions = []
         leftover = (16 - (self.offset % 16)) % 16
         self.padding_stack.append(leftover)

@@ -38,14 +38,15 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             lines.append(f"mov rax, [rel {lab}] ; false")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "VarExpr":
-            lines.append(f"; VarExpr => local or global for {expr.resolved_type}")
+            lines.append(f"; VarExpr => local or global for {expr}")
             lines.extend(sub_rsp(get_size(expr)))
-            if expr.name == "argnum" and expr.name not in var_offsets:
-                    var_offsets["argnum"] = -16
-                
+            if (expr.name == "argnum") and ("argnum","args") not in var_offsets:
+                    var_offsets[expr.name] = - 16 
+            if (expr.name == 'args') and ("argnum","args") not in var_offsets:
+                    var_offsets[expr.name] = - 24   
                     
             if expr.name not in var_offsets:
-                lines.append("; WARNING: variable not found!")
+                lines.append(f"; WARNING: variable{expr.name} not found! {expr}")
             else:
                 value = var_offsets[expr.name]
                 if isinstance(value, tuple) or not inFunc:
@@ -510,10 +511,7 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
                 lines.append("call _fail_assertion")
                 lines.append(f"{bound_label}:")
                 count += 1
-
-                
-                
-                
+  
             offset = 0
             lines.append("mov rax, 0")
             count = 0
@@ -526,9 +524,9 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             # 9. 释放下标和数组副本占用的栈空间
             for index in expr.indexes:
                 lines.extend(add_rsp(get_size(index), "Free index"))
-            lines.extend(add_rsp(len(expr.indexes) * get_size(expr.resolved_type) + get_size(expr.resolved_type), f"Free array copy {expr}"))
+            lines.extend(add_rsp(len(expr.indexes) * 8 + 8, f"Free array copy {expr} , each size {expr.resolved_type}"))
             # 10. 为元素分配栈空间并复制目标元素数据
-            lines.extend(sub_rsp(8, "Allocate space for element"))
+            lines.extend(sub_rsp(8, f"Allocate space for element{expr}"))
             lines.append("    mov r10, [rax + 0]")
             lines.append("    mov [rsp + 0], r10")
             

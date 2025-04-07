@@ -16,7 +16,7 @@ run:
 
 # Run tests with the auto-grader
 test:
-	make -C ./grader DIR=$(PWD) PART=1 test-hw11
+	make -C ./grader DIR=$(PWD) PART=4 test-hw12
 
 hi:
 	make -C ./grader DIR=$(PWD) PART=2 test-hw11

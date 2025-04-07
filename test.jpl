@@ -1,4 +1,1 @@
-fn f() : bool {
-   return false != false
-}
-show f()
+show array[i : 3, j : 9] [i,j,i]

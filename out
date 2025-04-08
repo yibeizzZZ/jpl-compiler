@@ -24,8 +24,9 @@ extern _to_int
 extern _to_float
 
 section .data
-  const0: dq 1.0
-  const1: db `(FloatType)`, 0
+  const0: db `non-positive loop bound`, 0
+  const1: db `overflow computing array size`, 0
+  const2: db `(ArrayType (IntType) 4)`, 0
 
 section .text
 
@@ -37,17 +38,142 @@ _jpl_main:
     push r12
     mov r12, rbp ; end of jpl_main prelude
 
-    ;                            Now Have Cmd ShowCmd(start_idx=2, expr=FloatExpr(start_idx=5, value=1.0))
-    ;;8 ,-------showing FloatExpr(start_idx=5, value=1.0)
+    ;                            Now Have Cmd ShowCmd(start_idx=20, expr=ArrayLoopExpr(start_idx=44, bounds=[('i', IntExpr(start_idx=15, value=8)), ('j', VarExpr(start_idx=22, name='argnum')), ('k', IntExpr(start_idx=34, value=8)), ('l', IntExpr(start_idx=41, value=3))], body=VarExpr(start_idx=44, name='i')))
+    ;;8 ,-------showing ArrayLoopExpr(start_idx=44, bounds=[('i', IntExpr(start_idx=15, value=8)), ('j', VarExpr(start_idx=22, name='argnum')), ('k', IntExpr(start_idx=34, value=8)), ('l', IntExpr(start_idx=41, value=3))], body=VarExpr(start_idx=44, name='i'))
     
-    ;Start ShowCmd as FloatType(start_idx=5) ,NEED 8
-    ; NOTICE! Here INSERT a 0 padding for 8 and 8, now have [0]
-    push qword 1.0  ; (P1) optimized immediate push
-    lea rdi, [rel const1]
+    ;Start ShowCmd as ArrayType(start_idx=44, element_type=IntType(start_idx=44), dimension=4) ,NEED 40
+    ; NOTICE! Here INSERT a 0 padding for 8 and 40, now have [0]
+    ;;;;Array loop for ArrayLoopExpr(start_idx=44, bounds=[('i', IntExpr(start_idx=15, value=8)), ('j', VarExpr(start_idx=22, name='argnum')), ('k', IntExpr(start_idx=34, value=8)), ('l', IntExpr(start_idx=41, value=3))], body=VarExpr(start_idx=44, name='i'))
+    sub rsp, 8 ; Allocating 8 bytes for pointer ,new offset 16
+    ; Computing bound for '('l', IntExpr(start_idx=41, value=3))'
+    push qword 3  ; (P1) optimized immediate push
+    mov rax, [rsp]
+    cmp rax, 0
+    jg .jump1
+    sub rsp, 8 ; align *current* stack by 8, new offset 32
+    lea rdi, [rel const0] ; 'non-positive loop bound'
+    call _fail_assertion
+    add rsp, 8 ; remove padding of 8, new offset 24, now have [0]
+    .jump1:
+    ; Computing bound for '('k', IntExpr(start_idx=34, value=8))'
+    push qword 8  ; (P1) optimized immediate push
+    mov rax, [rsp]
+    cmp rax, 0
+    jg .jump2
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const0] ; 'non-positive loop bound'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump2:
+    ; Computing bound for '('j', VarExpr(start_idx=22, name='argnum'))'
+    ; VarExpr => local or global for VarExpr(start_idx=22, name='argnum')
+    sub rsp, 8 ; pop stack ,new offset 40
+    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
+    mov r10, [rbp - -16 + 0]
+    mov [rsp+ 0], r10
+    mov rax, [rsp]
+    cmp rax, 0
+    jg .jump3
+    sub rsp, 8 ; align *current* stack by 8, new offset 48
+    lea rdi, [rel const0] ; 'non-positive loop bound'
+    call _fail_assertion
+    add rsp, 8 ; remove padding of 8, new offset 40, now have [0]
+    .jump3:
+    ; Computing bound for '('i', IntExpr(start_idx=15, value=8))'
+    push qword 8  ; (P1) optimized immediate push
+    mov rax, [rsp]
+    cmp rax, 0
+    jg .jump4
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const0] ; 'non-positive loop bound'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump4:
+    mov rdi, 8 ; =====================
+    imul rdi, [rsp + 0] ; multiply by bound
+    jno .jump5
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const1] ; 'overflow computing array size'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump5:
+    imul rdi, [rsp + 8] ; multiply by bound
+    jno .jump6
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const1] ; 'overflow computing array size'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump6:
+    imul rdi, [rsp + 16] ; multiply by bound
+    jno .jump7
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const1] ; 'overflow computing array size'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump7:
+    imul rdi, [rsp + 24] ; multiply by bound
+    jno .jump8
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    lea rdi, [rel const1] ; 'overflow computing array size'
+    call _fail_assertion
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    .jump8:
+    ; NOTICE! Here INSERT a 0 padding, now have{self.padding_stack}
+    call _jpl_alloc
+    ; NOTICE! Here REMOVE a 0 padding, now have[0]
+    mov [rsp + 32], rax ; Move to pre-allocated space
+    mov rax, 0
+    push rax ;  actually 8 bytes, new offset: 56,now have [('arg', 0, 0), ('qword', 8, 0), ('qword', 8, 0), ('qword', 8, 0)]
+    mov rax, 0
+    push rax ;  actually 8 bytes, new offset: 64,now have [('arg', 0, 0), ('qword', 8, 0), ('qword', 8, 0), ('qword', 8, 0), ('rax', 8, 0)]
+    mov rax, 0
+    push rax ;  actually 8 bytes, new offset: 72,now have [('arg', 0, 0), ('qword', 8, 0), ('qword', 8, 0), ('qword', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    mov rax, 0
+    push rax ;  actually 8 bytes, new offset: 80,now have [('arg', 0, 0), ('qword', 8, 0), ('qword', 8, 0), ('qword', 8, 0), ('rax', 8, 0), ('rax', 8, 0), ('rax', 8, 0)]
+    .jump9: ; Begin loop body
+    ; VarExpr => local or global for VarExpr(start_idx=44, name='i')
+    sub rsp, 8 ; pop stack ,new offset 88
+    ; ;;;;;;;;;;;;;;LOCAL!!!!!!
+    mov r10, [rbp - 80 + 0]
+    mov [rsp+ 0], r10
+    mov rax, [rsp +  8] ; Add index value
+    imul rax, [rsp + 48] ; Multiply by element size (8 bytes) for bound ('j', VarExpr(start_idx=22, name='argnum'))
+    add rax, [rsp +  16] ; Add index value
+    shl rax, 3
+    add rax, [rsp +  24] ; Add index value
+    imul rax, [rsp + 64] ; Multiply by element size (8 bytes) for bound ('l', IntExpr(start_idx=41, value=3))
+    add rax, [rsp +  32] ; Add index value
+    shl rax, 3
+    add rax, [rsp + 72] ; Add base array address
+    mov r10, [rsp + 0] ; get loop body result
+    mov [rax + 0], r10
+    add rsp, 8 ; Free loop body result from ArrayLoopExpr(start_idx=44, bounds=[('i', IntExpr(start_idx=15, value=8)), ('j', VarExpr(start_idx=22, name='argnum')), ('k', IntExpr(start_idx=34, value=8)), ('l', IntExpr(start_idx=41, value=3))], body=VarExpr(start_idx=44, name='i')) ,new offset 80
+    add qword [rsp + 24], 1
+    ;---STACK CHECK FOR {'argnum': -16, 'l': 56, 'k': 64, 'j': 72, 'i': 80}
+    mov rax, [rsp + 24]
+    cmp rax, [rsp + 56]
+    jl .jump9 ; if loop variable < bound, iterate
+    mov qword [rsp + 24], 0
+    add qword [rsp + 16], 1
+    mov rax, [rsp + 16]
+    cmp rax, [rsp + 48]
+    jl .jump9 ; if loop variable < bound, iterate
+    mov qword [rsp + 16], 0
+    add qword [rsp + 8], 1
+    mov rax, [rsp + 8]
+    cmp rax, [rsp + 40]
+    jl .jump9 ; if loop variable < bound, iterate
+    mov qword [rsp + 8], 0
+    add qword [rsp + 0], 1
+    mov rax, [rsp + 0]
+    cmp rax, [rsp + 32]
+    jl .jump9 ; if loop variable < bound, iterate
+    add rsp, 32 ; push stack ,new offset 48
+    lea rdi, [rel const2]
     lea rsi, [rsp]
     call _show
-    ;Get size of FloatType(start_idx=5) and is 8
-    add rsp, 8 ; push stack ,new offset 8
+    ;Get size of ArrayType(start_idx=44, element_type=IntType(start_idx=44), dimension=4) and is 40
+    add rsp, 40 ; push stack ,new offset 8
     ; NOTICE! Here REMOVE a 0 padding, now have[]
     ;End of ShowCmd 
 

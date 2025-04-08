@@ -386,12 +386,43 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                     lines.append("sub rax, r10")
                     lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '*':
-                    lines.extend(cg_expr(expr.right , isIn))
-                    lines.extend(cg_expr(expr.left , isIn))
-                    lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
-                    lines.extend(stack.pop("r10", 8))
-                    lines.append("imul rax, r10")
-                    lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+
+                    left_is_intconst  = isinstance(expr.left, IntExpr)
+                    right_is_intconst = isinstance(expr.right, IntExpr)
+
+                    left_val  = expr.left.value  if left_is_intconst  else None
+                    right_val = expr.right.value if right_is_intconst else None
+
+                    left_pow2  = (left_val  is not None and left_val  >= 0 and is_power_of_two(left_val))
+                    right_pow2 = (right_val is not None and right_val >= 0 and is_power_of_two(right_val))
+
+                    if left_pow2 and optimized:
+                        if left_val == 1:
+                            lines.extend(cg_expr(expr.right, inFunc))
+                        else:
+                            lines.extend(cg_expr(expr.right, inFunc))
+                            lines.extend(stack.pop("rax", get_size(expr.right.resolved_type)))
+                            shift_amt = floor_log2(left_val)
+                            lines.append(f"shl rax, {shift_amt}")
+                            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+
+                    elif right_pow2 and optimized:
+                        if right_val == 1:
+                            lines.extend(cg_expr(expr.left, inFunc))
+                        else:
+                            lines.extend(cg_expr(expr.left, inFunc))
+                            lines.extend(stack.pop("rax", get_size(expr.left.resolved_type)))
+                            shift_amt = floor_log2(right_val)
+                            lines.append(f"shl rax, {shift_amt}")
+                            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+
+                    else:
+                        lines.extend(cg_expr(expr.right, inFunc))
+                        lines.extend(cg_expr(expr.left, inFunc))
+                        lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
+                        lines.extend(stack.pop("r10", 8))
+                        lines.append("imul rax, r10")
+                        lines.extend(stack.push("rax", get_size(expr.resolved_type)))
                 elif expr.op.value == '<':
                     lines.extend(cg_expr(expr.right , isIn))
                     lines.extend(cg_expr(expr.left , isIn))
@@ -500,26 +531,19 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                 # 11. END 标签
                 lines.append(f"{end_label}:")               
         elif expr.__class__.__name__ == "ArrayIndexExpr":
-            # 1. 生成数组表达式的代码（例如 a），压入数组字面量各个元素
             lines.append(f";---we have {expr.resolved_type}")
             lines.extend(cg_expr(expr.array, inFunc))
-            # 2. 计算总大小：如果 a 是数组字面量，使用 len(a.elements)*8，否则使用固定值
             if isinstance(expr.array, VarExpr) and expr.array.name in global_array_sizes:
                 n = global_array_sizes[expr.array.name]
             else:
-                # 若没有记录，可以设为默认值（或者报错）
                 n = 1
-            total_size = n * 8  # 每个元素8字节
-            # 3. 分配一块 total_size 字节的内存
-            # 4. 将数组的边界（元素个数）压入栈中
-            # 5. 为下标检查预留16字节
-            # 6. 生成下标表达式代码
+            total_size = n * 8  
             lines.append(f"; We have indexes of  {expr.indexes}")
             GAP = get_size(expr)
             count = 0
+            
             for index in reversed(expr.indexes):
                 lines.extend(cg_expr(index , inFunc))
-                # 7. 下标检查：弹出下标到 rax
             for index in expr.indexes:
                 lines.append(f"mov rax, [rsp + {count * 8}]")
                 lines.append("cmp rax, 0")
@@ -547,11 +571,9 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                 count += 1
             lines.append(f"imul rax, {get_size(expr.resolved_type)}")
             lines.append(f"add rax, [rsp + {offset + count * 8 + GAP}] ; Add base array address")
-            # 9. 释放下标和数组副本占用的栈空间
             for index in expr.indexes:
                 lines.extend(add_rsp(get_size(index), "Free index"))
             lines.extend(add_rsp(len(expr.indexes) * 8 + 8, f"Free array copy {expr} , each size {expr.resolved_type}"))
-            # 10. 为元素分配栈空间并复制目标元素数据
             lines.extend(sub_rsp(8, f"Allocate space for element{expr}"))
             lines.append("    mov r10, [rax + 0]")
             lines.append("    mov [rsp + 0], r10")   
@@ -628,23 +650,17 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             return lines
         elif expr.__class__.__name__ == "ArrayLoopExpr":
             
-            # 假设表达式形如: array [i : E_bound] BODY
             lines = []
             lines.append(f";;;;Array loop for {expr}")
-            # --- 分配堆空间 ---
-            # 1. 添加对栈的对齐：先增加8字节对齐
-            # 2. 为指针预留8字节空间
             lines.extend(sub_rsp(8, "Allocating 8 bytes for pointer"))
-            # 3. 生成循环边界 E_bound（例如256）的代码
-            #    注意：这里应让 E_bound 走 cg_expr，它会生成常量，形成 dq 常量输出
             for bound in reversed(expr.bounds):
                 lines.append(f"; Computing bound for '{bound}'")
                 lines.extend(cg_expr(bound[1], inFunc))
                 lines.append("mov rax, [rsp]")
                 lines.append("cmp rax, 0")
                 lines.extend(assert_code("non-positive loop bound"))
-
-            # 5. 边界值仍留在栈上；计算总大小 = sizeof(IntType)*bound
+            
+                
             lines.append(f"mov rdi, {get_size(expr.body)} ; =====================")
             index = 0
             for bound in expr.bounds:
@@ -652,61 +668,79 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                 lines.extend(assert_code("overflow computing array size" , jump_sign = "jno"))
                 index += 1
 
-
-            # 6. 调用 _jpl_alloc 分配堆内存，返回的指针存入 rax
             lines.extend(stack.align_current())
             lines.append("call _jpl_alloc")
             lines.extend(stack.unalign())
-            # 7. 将分配的指针存入预留的指针空间，即 [rsp + 8]
             lines.append(f"mov [rsp + {len(expr.bounds) * 8}], rax ; Move to pre-allocated space")
-            
-            # --- 初始化循环 ---
-            # 8. 初始化循环变量 i 为 0；这里同时将循环变量的栈偏移记录到 var_offsets 中
-            
+
             for bound in reversed(expr.bounds):
                 lines.append("mov rax, 0")
                 lines.extend(stack.push("rax", 8))
-
                 next_global_offset += 8
                 var_offsets[bound[0]] = stack.offset
                 
-            # 9. 设置循环开始标签
             loop_label = f".jump{jump_counter}"
             jump_counter += 1
             lines.append(f"{loop_label}: ; Begin loop body")
-            
-            # --- 生成循环体 ---
-            # 10. 生成循环体 BODY 的代码（例如 BODY 为 VarExpr "i"）
             body_code = cg_expr(expr.body, inFunc)
             lines.extend(body_code)
-            # 11. 计算目标元素存储地址：
-            #     计算公式：target = ( ( (bound_value * 8) + index_value ) * 8 ) + pointer
-            offset = get_size(expr.body.resolved_type)
+#P3 starts here
+
+            
             rank = len (expr.bounds)
             GAP = 0
             for index in expr.bounds:
                 GAP += get_size(index[1])
-            # GAP = get_size(expr.resolved_type)
-            lines.append("mov rax, 0")
-            count = 0
-            for index in expr.bounds:
-                lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes)")
-                lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
-                count += 1
+            
+            if optimized:
+                offset = get_size(expr.body.resolved_type)
+                count = 0
+                lines.append(f"mov rax, [rsp +  {offset + count * 8 }] ; Add index value")
+
+                for index in expr.bounds:
+                    if count == 0 :
+                        pass
+                    else:
+                        if isinstance(index[1], IntExpr):
+                            bound_val = index[1].value
+                            if is_power_of_two(bound_val):
+                                lines.append(f"shl rax, {floor_log2(bound_val)}")
+                            else:
+                                lines.append(f"imul rax, {bound_val}")
+                        else:
+                            lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes) for bound {index}")
+                        lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
+                    count += 1
+                    
+                elem_sz = get_size(expr.body.resolved_type)
+                if is_power_of_two(elem_sz):
+                    shift_amount = floor_log2(elem_sz)
+                    lines.append(f"shl rax, {shift_amount}")
+                else:
+                    lines.append(f"imul rax, {elem_sz}")
+
+            else:
+                offset = get_size(expr.body.resolved_type)
+                lines.append("mov rax, 0")
+                count = 0
+                for index in expr.bounds:
+                    lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes)")
+                    lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
+                    count += 1
+                    
+                lines.append(f"imul rax, {get_size(expr.body.resolved_type)}")
                 
-            lines.append(f"imul rax, {get_size(expr.body.resolved_type)}")
+                
             lines.append(f"add rax, [rsp + {offset + count * 8 + GAP}] ; Add base array address")
             
-
-            # 12. 将循环体的计算结果复制到目标位置
             while offset > 0:
                 offset -= 8
                 lines.append(f"mov r10, [rsp + {offset}] ; get loop body result")
                 lines.append(f"mov [rax + {offset}], r10")
                 
-            # 13. 释放用于循环体计算占用的空间（例如，如果 BODY 产生了8字节数据）
+                
+                
             lines.extend(add_rsp(get_size(expr.body.resolved_type), f"Free loop body result from {expr}"))
-            # 14. 增加循环变量
             lines.append(f"add qword [rsp + {len(expr.bounds) * 8  - 8}], 1")
             length = len(expr.bounds)
             lines.append(f";---STACK CHECK FOR {var_offsets}")
@@ -717,16 +751,8 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                 lines.append(f"jl {loop_label} ; if loop variable < bound, iterate")
                 if length > 1:
                     lines.append(f"mov qword [rsp + {offset}], 0")
-                    lines.append(f"add qword [rsp + {offset - 8}], 1") # 这两个还没想好怎么弄
+                    lines.append(f"add qword [rsp + {offset - 8}], 1") 
                     length -= 1
-                # pass
-            
-            # 15. 比较循环变量 i 与边界值
-            # 这里注意：实际情况中，边界值可能存放在固定位置，比如 [rsp + offset]，请根据你的栈管理做调整
-
-            
-            # --- 循环结束后 ---
-            # 16. 释放循环变量和边界值以及指针空间（共24字节）
             lines.extend(add_rsp(get_size(expr) - 8))
 
             return lines
@@ -858,7 +884,11 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
         instructions.append(f"mov [rax + {pointer_offset}], r10")
 
         return instructions
-    
+    def is_power_of_two(x: int) -> bool:
+        return x > 0 and (x & (x - 1)) == 0
+
+    def floor_log2(x: int) -> int:
+        return x.bit_length() - 1
     def generate_function(cmd: FnCmd) -> str:
 
         func_body = []

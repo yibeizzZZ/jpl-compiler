@@ -4,7 +4,7 @@ from typechecker import *
 from stack import Stack  
 from callingConvention import *
 from dataclasses import asdict
-def generate_asm_code(ast_cmds: List[Cmd]) -> str:
+def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
     stack = Stack()
     var_offsets: Dict[str,int] = {}
     next_global_offset = 16
@@ -22,21 +22,41 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
         isIn = inFunc
         lines = []
         if expr.__class__.__name__ == "IntExpr":
-            lab = get_const(expr.value, "int")
-            lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
-            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            value = expr.value
+            # ① 如果开启优化 且 常数能放进 32位 => 直接用 push qword imm
+            if optimized and fits_in_32bit_range(value):
+                lines.append(f"push qword {value}  ; (P1) optimized immediate push")
+                stack.push_reg("qword" , 8)
+            else:
+                # ② 不然就用以前的逻辑
+                lab = get_const(value, "int")
+                lines.append(f"mov rax, [rel {lab}] ; {value}")
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+        elif expr.__class__.__name__ == "TrueExpr":
+            if optimized:
+                # 直接 push qword 1
+                lines.append("push qword 1    ; (P1) push immediate for True")
+                stack.push_reg("qword" , 8)
+            else:
+                # 旧逻辑: lab+mov
+                lab = get_const(1, "int")
+                lines.append(f"mov rax, [rel {lab}] ; true")
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "FloatExpr":
             lab = get_const(expr.value, "float")
-            lines.append(f"mov rax, [rel {lab}] ; {expr.value}")
-            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
-        elif expr.__class__.__name__ == "TrueExpr":
-            lab = get_const(1, "int")
-            lines.append(f"mov rax, [rel {lab}] ; true")
+            value = expr.value
+            lines.append(f"mov rax, [rel {lab}] ; {value}")
             lines.extend(stack.push("rax", get_size(expr.resolved_type)))
         elif expr.__class__.__name__ == "FalseExpr":
-            lab = get_const(0, "int")
-            lines.append(f"mov rax, [rel {lab}] ; false")
-            lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+            if optimized:
+                # 直接 push qword 0
+                lines.append("push qword 0    ; (P1) push immediate for False")
+                stack.push_reg("qword" , 8)
+            else:
+                lab = get_const(0, "int")
+                lines.append(f"mov rax, [rel {lab}] ; false")
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+                # pass
         elif expr.__class__.__name__ == "VarExpr":
             lines.append(f"; VarExpr => local or global for {expr}")
             lines.extend(sub_rsp(get_size(expr)))
@@ -755,6 +775,8 @@ def generate_asm_code(ast_cmds: List[Cmd]) -> str:
             return
         stack.offset += n
         return [f"sub rsp, {n} ; {comment} ,new offset {stack.offset}"]
+    def fits_in_32bit_range(x: int) -> bool:
+        return -2147483648 <= x <= 2147483647
     def add_rsp(n: int, comment: str = "push stack") -> List[str]:
         if n == 0:
             return

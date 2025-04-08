@@ -102,8 +102,7 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                         start = f"r12 - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"
                         lines.append(f"mov r10, [{start} + {offset}]")
                         lines.append(f"mov [rsp+ {offset}], r10")
-                        offset -= 8
-                    
+                        offset -= 8               
         elif expr.__class__.__name__ == "CallExpr":
             # lines.append(f"`````````````````````{stack} ")
 
@@ -465,34 +464,41 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             lines.append(f"mov rax, {n}")
             lines.extend(stack.push_reg("rax", 8))             
         elif expr.__class__.__name__ == "IfExpr":
+            if optimized \
+                        and isinstance(expr.cond.resolved_type, BoolType) \
+                        and isinstance(expr.then_branch, IntExpr) and expr.then_branch.value == 1 \
+                        and isinstance(expr.else_branch, IntExpr) and expr.else_branch.value == 0:
+            # ---- 符合模式 => 直接把 cond 当做整数 push 就行 ----
+                lines.extend(cg_expr(expr.cond, inFunc))
+            else:
             # 1. 生成条件表达式 E₁ 的代码
-            lines.extend(cg_expr(expr.cond, inFunc))
-            # 2. 从栈中弹出条件值到 rax（BoolType 为 8 字节）
-            lines.extend(stack.pop("rax", get_size(expr.cond.resolved_type)))
-            # 3. 比较 rax 是否为 0
-            lines.append("cmp rax, 0")
-            # 4. 设置 ELSE 分支和 END 分支的跳转标签
-            else_label = f".jump{jump_counter}"
-            jump_counter += 1
-            end_label = f".jump{jump_counter}"
-            jump_counter += 1
-            # 5. 条件为假时跳转到 ELSE 分支
-            lines.append(f"je {else_label}")
-            # 6. 生成 then 分支 E₂ 的代码
-            then_lines = cg_expr(expr.then_branch, inFunc)
-            lines.extend(then_lines)
-            # 7. 调整栈：减少返回值大小（根据 then 分支返回类型）并模拟从 shadow stack 弹出 8 字节
-            ret_size = get_size(expr.then_branch.resolved_type)
-            add_rsp(ret_size, "Decrement stack by size of return type after THEN branch")
-            # 8. then 分支结束后跳转到 END 标签
-            lines.append(f"jmp {end_label}")
-            # 9. ELSE 分支标签
-            lines.append(f"{else_label}:")
-            # 10. 生成 else 分支 E₃ 的代码
-            else_lines = cg_expr(expr.else_branch, inFunc)
-            lines.extend(else_lines)
-            # 11. END 标签
-            lines.append(f"{end_label}:")               
+                lines.extend(cg_expr(expr.cond, inFunc))
+                # 2. 从栈中弹出条件值到 rax（BoolType 为 8 字节）
+                lines.extend(stack.pop("rax", get_size(expr.cond.resolved_type)))
+                # 3. 比较 rax 是否为 0
+                lines.append("cmp rax, 0")
+                # 4. 设置 ELSE 分支和 END 分支的跳转标签
+                else_label = f".jump{jump_counter}"
+                jump_counter += 1
+                end_label = f".jump{jump_counter}"
+                jump_counter += 1
+                # 5. 条件为假时跳转到 ELSE 分支
+                lines.append(f"je {else_label}")
+                # 6. 生成 then 分支 E₂ 的代码
+                then_lines = cg_expr(expr.then_branch, inFunc)
+                lines.extend(then_lines)
+                # 7. 调整栈：减少返回值大小（根据 then 分支返回类型）并模拟从 shadow stack 弹出 8 字节
+                ret_size = get_size(expr.then_branch.resolved_type)
+                add_rsp(ret_size, "Decrement stack by size of return type after THEN branch")
+                # 8. then 分支结束后跳转到 END 标签
+                lines.append(f"jmp {end_label}")
+                # 9. ELSE 分支标签
+                lines.append(f"{else_label}:")
+                # 10. 生成 else 分支 E₃ 的代码
+                else_lines = cg_expr(expr.else_branch, inFunc)
+                lines.extend(else_lines)
+                # 11. END 标签
+                lines.append(f"{end_label}:")               
         elif expr.__class__.__name__ == "ArrayIndexExpr":
             # 1. 生成数组表达式的代码（例如 a），压入数组字面量各个元素
             lines.append(f";---we have {expr.resolved_type}")
@@ -548,8 +554,7 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             # 10. 为元素分配栈空间并复制目标元素数据
             lines.extend(sub_rsp(8, f"Allocate space for element{expr}"))
             lines.append("    mov r10, [rax + 0]")
-            lines.append("    mov [rsp + 0], r10")
-            
+            lines.append("    mov [rsp + 0], r10")   
         elif expr.__class__.__name__ == "SumLoopExpr":
             lines = []
             

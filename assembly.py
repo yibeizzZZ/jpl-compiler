@@ -531,19 +531,46 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                 # 11. END 标签
                 lines.append(f"{end_label}:")               
         elif expr.__class__.__name__ == "ArrayIndexExpr":
-            lines.append(f";---we have {expr.resolved_type}")
-            lines.extend(cg_expr(expr.array, inFunc))
+            lines.append(f";---we have {expr.array}")
+            need_free = True
+            if optimized:
+                stack_size_before = stack.offset
+                local_array_optimization = False
+                
+                if not inFunc or isinstance(var_offsets[expr.array.name], tuple):
+                    local_array = True
+                        
+                rank = len(expr.indexes)
+                if local_array:
+                    if isinstance(var_offsets[expr.array.name], tuple):
+                        arr_offset = var_offsets[expr.array.name][0]       # bytes, 正值    
+                    else:
+                        arr_offset = var_offsets[expr.array.name] 
+                    GAP = (stack_size_before - arr_offset) + 8 * rank - 8
+                    need_free = False
+                else:
+                    lines.extend(cg_expr(expr.array, inFunc))          # 复制到栈顶
+                    GAP = 8 * rank
+                    need_free = True
+
+            else:
+                lines.extend(cg_expr(expr.array, inFunc))
+                GAP = get_size(expr)
+            
+            lines.append(f"; GAPPPPPPPPPPPP is   {GAP}")
             if isinstance(expr.array, VarExpr) and expr.array.name in global_array_sizes:
                 n = global_array_sizes[expr.array.name]
             else:
                 n = 1
             total_size = n * 8  
             lines.append(f"; We have indexes of  {expr.indexes}")
-            GAP = get_size(expr)
+            
             count = 0
             
+
             for index in reversed(expr.indexes):
                 lines.extend(cg_expr(index , inFunc))
+                
             for index in expr.indexes:
                 lines.append(f"mov rax, [rsp + {count * 8}]")
                 lines.append("cmp rax, 0")
@@ -562,18 +589,50 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                 lines.append(f"{bound_label}:")
                 count += 1
   
-            offset = 0
-            lines.append("mov rax, 0")
-            count = 0
-            for index in expr.indexes:
-                lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes)")
-                lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
-                count += 1
-            lines.append(f"imul rax, {get_size(expr.resolved_type)}")
+            if optimized:
+                offset = 0
+                count = 0
+                lines.append(f"mov rax, [rsp +  {offset + count * 8 }] ; Add index value")
+
+                for index in expr.indexes:
+                    if count == 0 :
+                        pass
+                    else:
+                        if isinstance(index, IntExpr):
+                            bound_val = index.value
+                            if is_power_of_two(bound_val):
+                                lines.append(f"shl rax, {floor_log2(bound_val)}")
+                            else:
+                                lines.append(f"imul rax, {bound_val}")
+                        else:
+                            lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes) for bound {index}")
+                        lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
+                    count += 1
+                    
+                elem_sz = get_size(expr.resolved_type)
+                if is_power_of_two(elem_sz):
+                    shift_amount = floor_log2(elem_sz)
+                    lines.append(f"shl rax, {shift_amount}")
+                else:
+                    lines.append(f"imul rax, {elem_sz}")
+
+            else:
+                offset = 0
+                lines.append("mov rax, 0")
+                count = 0
+                for index in expr.indexes:
+                    lines.append(f"imul rax, [rsp + {offset + count * 8 + GAP}] ; Multiply by element size (8 bytes)")
+                    lines.append(f"add rax, [rsp +  {offset + count * 8 }] ; Add index value")
+                    count += 1
+                    
+                lines.append(f"imul rax, {get_size(expr.resolved_type)}")
+            
             lines.append(f"add rax, [rsp + {offset + count * 8 + GAP}] ; Add base array address")
+            
             for index in expr.indexes:
                 lines.extend(add_rsp(get_size(index), "Free index"))
-            lines.extend(add_rsp(len(expr.indexes) * 8 + 8, f"Free array copy {expr} , each size {expr.resolved_type}"))
+            if need_free:
+                lines.extend(add_rsp(len(expr.indexes) * 8 + 8, f"Free array copy {expr} , each size {expr.resolved_type}"))
             lines.extend(sub_rsp(8, f"Allocate space for element{expr}"))
             lines.append("    mov r10, [rax + 0]")
             lines.append("    mov [rsp + 0], r10")   
@@ -684,7 +743,7 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             lines.append(f"{loop_label}: ; Begin loop body")
             body_code = cg_expr(expr.body, inFunc)
             lines.extend(body_code)
-#P3 starts here
+            #P3 starts here
 
             
             rank = len (expr.bounds)

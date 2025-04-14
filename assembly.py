@@ -17,7 +17,8 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
     functions = []
     jump_counter = 1
     global_array_sizes = {}
-    
+    var_offsets["argnum"] = - 16 
+    var_offsets['args'] = - 24   
     def cg_expr(expr , inFunc : bool = False) -> List[str]:
         isIn = inFunc
         lines = []
@@ -85,7 +86,7 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                         stored_offset = value
                         
                         offset = get_size(expr.resolved_type) - 8
-                        if offset > 16:
+                        if offset >= 16:
                             start = f"rbp - {var_offsets[expr.name]}"
                         else:  
                             start = f"rbp - {var_offsets[expr.name]+ get_size(expr.resolved_type) - 8}"

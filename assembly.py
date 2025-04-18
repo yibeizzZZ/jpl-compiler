@@ -4,9 +4,10 @@ from typechecker import *
 from stack import Stack  
 from callingConvention import *
 from dataclasses import asdict
-def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
+def generate_asm_code(ast_cmds: List[Cmd], opt: string = "") -> str:
     stack = Stack()
     var_offsets: Dict[str,int] = {}
+    var_sizes: Dict[str,int] = {}
     next_global_offset = 16
     num_counter = 0
     const_table = {}
@@ -19,6 +20,11 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
     global_array_sizes = {}
     var_offsets["argnum"] = - 16 
     var_offsets['args'] = - 24   
+    optimized = opt == "-O1"
+    struct_field_map: Dict[str, List[TypeNode]] = {}
+    for cmd in ast_cmds:
+        if isinstance(cmd, StructCmd):
+            struct_field_map[cmd.name] = [ftype for (_, ftype) in cmd.field_pairs]
     def cg_expr(expr , inFunc : bool = False) -> List[str]:
         isIn = inFunc
         lines = []
@@ -118,10 +124,12 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             assignments = cc.get_argument_assignments(args_info)
             
             space_needed = stack.offset - get_size(expr.resolved_type)
-            lines.append(f"; Start of CallExpr with space {space_needed}")
+            lines.append(f"; Start of CallExpr with space {space_needed},for {expr}")
             
             #prepare stack
-            if not isinstance(expr.resolved_type, (ArrayType)):
+            if expr.function.name in ['to_int', 'to_float', "exp" , "sin" , "cos" ,"pow"]:
+                lines.extend(stack.align_current())
+            elif not isinstance(expr.resolved_type, (ArrayType)):
                 lines.extend(stack.align(space_needed))
             else:
                 lines.extend(stack.align_current())
@@ -194,6 +202,39 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             else:
                 lines.append("/* unhandled unary operator */")
         elif expr.__class__.__name__ == "BinopExpr":
+            if expr.op.value == "&&":
+                nonlocal jump_counter
+                label = f".jump{jump_counter}"
+                jump_counter += 1
+                # 1) evaluate left
+                lines.extend(cg_expr(expr.left, inFunc))
+                lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
+                lines.append("cmp rax, 0")
+                lines.append(f"je {label}")
+                # 2) evaluate right
+                lines.extend(cg_expr(expr.right, inFunc))
+                lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
+                # 3) label and push result
+                lines.append(f"{label}:")
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+                return lines
+
+            if expr.op.value == "||":
+                label = f".jump{jump_counter}"
+                jump_counter += 1
+                # 1) evaluate left
+                lines.extend(cg_expr(expr.left, inFunc))
+                lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
+                lines.append("cmp rax, 0")
+                lines.append(f"jne {label}")
+                # 2) evaluate right
+                lines.extend(cg_expr(expr.right, inFunc))
+                lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
+                # 3) label and push result
+                lines.append(f"{label}:")
+                lines.extend(stack.push("rax", get_size(expr.resolved_type)))
+                return lines
+            
             if expr.left.resolved_type.to_s_expression() == "(FloatType)":
                 if expr.op.value == '%':
                     lines.extend(stack.align_current())
@@ -315,7 +356,7 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
                     stack.offset-=8
                 
                 if expr.op.value == '/':
-                    nonlocal jump_counter
+                    
                     lines.extend(cg_expr(expr.right , isIn))
                     lines.extend(cg_expr(expr.left , isIn))
                     lines.extend(stack.pop("rax", get_size(expr.resolved_type)))
@@ -849,6 +890,8 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
         label = f"const{num_counter}"
         num_counter += 1
         type_const_table[type_str] = label
+        type_str=type_str.replace("StructType rgba", "TupleType (FloatType) (FloatType) (FloatType) (FloatType)")
+
         data_lines.append(f'{label}: db `{type_str}`, 0')
         return label
     def expr_equal(e1, e2) -> bool:
@@ -892,7 +935,17 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             return 8 + type_node.dimension * 8
         elif isinstance(type_node, (IntType, FloatType, BoolType)):
             return 8
-        elif isinstance(type_node, (VoidType , StructType)):
+        elif isinstance(type_node, StructType):
+            name = type_node.name
+            if name == "rgba":
+                return 24
+            elif name not in struct_field_map:
+                raise Exception(f"Unknown struct type: {name}")
+            total = 0
+            for field_ty in struct_field_map[name]:
+                total += get_size(field_ty)
+            return total
+        elif isinstance(type_node, (VoidType)):
             raise Exception(f"Unsupported type for get_size : {type(type_node).__name__}: {type_node}")
         elif isinstance(type_node, (ArrayLoopExpr)):
             size = 0
@@ -1115,7 +1168,37 @@ def generate_asm_code(ast_cmds: List[Cmd], optimized: bool = False) -> str:
             body_lines.extend(add_rsp(get_size(cmd.expr.resolved_type)))
             body_lines.extend(stack.unalign())
             body_lines.append(f";End of ShowCmd \n")
-    
+            
+        elif isinstance(cmd, ReadCmd):
+            # 1) Allocate space for the returned 2D‐RGBA array struct (d0, d1, ptr)
+            # size = get_size(cmd.lvalue)        # should be 3*8 = 24
+            size = 24
+            body_lines.extend(sub_rsp(size, f"Alloc array for read_image{cmd}"))
+
+            # 2) Pass its address in RDI
+            body_lines.append("lea rdi, [rsp]")
+            body_lines.extend(stack.align_current())
+            # 3) Load the filename constant
+            fname_lab = get_type_const(cmd.filename)
+            body_lines.append(f"lea rsi, [rel {fname_lab}] ; '{cmd.filename}'")
+
+            # 4) Call the runtime image‐reader
+            body_lines.append("call _read_image")
+
+            # 5) Now store that struct into your JPL variable
+            #    (we assume VarLValue or ArrayLValue both use the same struct layout)
+            var_off = next_global_offset
+            var_offsets[cmd.lvalue.array if isinstance(cmd.lvalue, ArrayLValue) else cmd.lvalue.name] = var_off + 16
+            if isinstance(cmd.lvalue, ArrayLValue):
+                for indi in cmd.lvalue.indices:
+                    var_offsets[indi] = var_off + 16
+                    var_off -= 8
+            next_global_offset += size
+            body_lines.extend(stack.unalign())
+
+
+
+            # leave the struct’s stack slot live (no add_rsp yet)
 
             
     total_local = stack.offset  - 8

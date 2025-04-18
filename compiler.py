@@ -168,8 +168,8 @@ if __name__ == "__main__":
     elif sys.argv[1] == "-s":
         filename = sys.argv[2]
         # 检测一下后续是否存在 -O1
-        enable_optimizations = ("-O1" in sys.argv)
-
+        # enable_optimizations = ("-O1"   in sys.argv)
+        enable_optimizations = (sys.argv[2] in ["-O1","-O3"] )
         if enable_optimizations:
             filename = sys.argv[3]
 
@@ -183,7 +183,7 @@ if __name__ == "__main__":
             from assembly import generate_asm_code
 
             # 传入一个可选的参数 optimized=enable_optimizations
-            asm_code = generate_asm_code(ast, optimized=enable_optimizations)
+            asm_code = generate_asm_code(ast, opt=sys.argv[2])
             print(asm_code)
         except Exception as e:
             print("Compilation failed,", e)

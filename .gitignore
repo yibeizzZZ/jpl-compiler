@@ -1,10 +1,11 @@
-__pycache__/*
+__pycache__/
+*.py[cod]
 a.out
-*.class
 *.o
+*.out
+# Optional local runtime dependency; not bundled with this repository.
 rt/
 out
 out2
 out3
-grader/
 out.jpl

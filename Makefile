@@ -1,36 +1,31 @@
-# Default file for testing (can be overridden using TEST)
-# TEST=./grader/hw4/fail-fuzzer1/001.jpl
-# TEST=./grader/hw8/ok-fuzzer/002.jpl
-TEST = test.jpl
-FLAGS=-s
-# Default target
+PYTHON ?= python3
+TEST ?= test.jpl
+FLAGS ?= -s
+SOURCES := $(wildcard *.py) $(wildcard tests/*.py)
+
+.PHONY: all compile run test help clean
+
 all: help
 
-# Compile Python file for syntax errors
-compile: compiler.py
-	python3 -m py_compile $^ parser.py
+# Check every compiler and test module for Python syntax errors.
+compile:
+	$(PYTHON) -m py_compile $(SOURCES)
 
-# Run the lexer
 run:
-	python3 compiler.py $(FLAGS) $(TEST)
+	$(PYTHON) compiler.py $(FLAGS) "$(TEST)"
 
-# Run tests with the auto-grader
+# Local smoke and regression tests; no external runtime is needed.
 test:
-	make -C ./grader DIR=$(PWD)  test-hw14
+	$(PYTHON) -m unittest discover -s tests -v
 
-hi:
-	make -C ./grader DIR=$(PWD) PART=2 test-hw11
-go:
-	make -C ./grader DIR=$(PWD) PART=3 test-hw11
-# Display help
 help:
 	@echo "Available targets:"
-	@echo "  run      - Run the lexer with: make run TEST=<input_file.jpl>"
-	@echo "  compile  - Check for syntax errors in compiler.py"
-	@echo "  test     - Run tests using the auto-grader"
+	@echo "  run      - Run the compiler: make run TEST=test.jpl FLAGS=-t"
+	@echo "  compile  - Check all Python modules for syntax errors"
+	@echo "  test     - Run local smoke and regression tests"
 	@echo "  clean    - Remove temporary files"
+	@echo "Use PYTHON=python to select a different Python 3.12+ executable."
 
-# Clean up temporary files
 clean:
 	rm -f *.out
-	rm -fr __pycache__
+	rm -rf __pycache__ tests/__pycache__

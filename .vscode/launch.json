@@ -8,22 +8,5 @@
             "program": "${file}",
             "console": "integratedTerminal"
         }
-    ],
-    "tasks": [
-    {
-      "label": "Test HW11",
-      "type": "shell",
-      "command": "make -C ./grader DIR=$(PWD) PART=2 test-hw11",
-      "group": {
-        "kind": "build"
-      },
-      "presentation": {
-        "echo": true,
-        "reveal": "always",
-        "focus": false,
-        "panel": "shared"
-      },
-      "problemMatcher": []
-    }
-  ]
+    ]
 }

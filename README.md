@@ -1,102 +1,154 @@
-CS 4470 Compilers Template
-==========================
+# JPL Compiler
 
-Use this repository to store your work for CS 4470: Compilers.
+A compiler written in Python for JPL, a statically typed language with array
+computations and image-oriented language constructs. The implementation includes
+a handwritten lexer, recursive-descent parser, type-annotated AST, an x86-64
+assembly emitter, and an experimental C emitter.
 
-To submit assignments, push commits to this repo.
-They will be graded based on the latest commit up to the
-deadline (after all granted extensions).
+This project builds on starter/template infrastructure supplied for CS 4470:
+Compilers. The compiler implementation evolved in this repository through
+collaborative work; course-provided scaffolding and the separately supplied
+runtime are not claimed as original work by the repository maintainer. See
+[attribution and provenance](docs/attribution.md) for the source distinction.
+The repository now provides local checks independent of course submission tools.
+The backends are incomplete; the implementation notes distinguish working
+frontend features from partial code generation.
 
-Setup
------
+## Try the compiler
 
-1. Clone this repository
-2. Choose a language
-    * If using Python, delete `compiler.java` and `Makefile_java`, and rename `Makefile_py` to `Makefile`:
-      - `rm compiler.java Makefile_java`
-      - `mv Makefile_py Makefile`
-    * If using Java, delete and rename vice-versa
-    * If using another language (with instructor permission), create your own `Makefile` and main file and update GitHub actions accordingly. See "Choosing a Language" below for more info.
-3. Inside your clone of `template/`, clone the grader and runtime repos. Add them to your gitignore. Build the runtime repo too:
-   - `git clone https://github.com/utah-cs4470-sp25/grader.git`
-   - `echo "grader/\nrt/" >> .gitignore`
-   - `git clone https://github.com/utah-cs4470-sp25/runtime rt; cd rt; make; cd ..;`
-4. For HW1, make an examples folder too. Put your HW1 work there:
-   - `mkdir examples`
+Use **Python 3.12 or newer**. The compiler uses only the Python standard library.
+The assembly emitter contains f-string syntax that requires Python 3.12.
+Run these commands from the repository root:
 
+```sh
+python compiler.py -l test.jpl
+python compiler.py -p test.jpl
+python compiler.py -t test.jpl
+python compiler.py -s examples/subtract.jpl
+python compiler.py -s -O1 examples/subtract.jpl
+```
 
-Choosing a Language
--------------------
+Use `python3` instead of `python` if that is the name of your Python 3.12+
+executable. These commands inspect compilation stages and emit text; they do
+not assemble, link, or execute a native program.
 
-This repository supports work in Java (19) or
-Python (3.10). It correspondingly includes starter files
-`compiler.java` and `compiler.py`. Each starter file
-compiles and runs, doing nothing and returning successfully. For each
-language there is also a Makefile: `Makefile_java`
-and `Makefile_py`.
+| Option | Output |
+| --- | --- |
+| `-l` | Tokens |
+| `-p` | AST as S-expressions |
+| `-t` | Type-annotated S-expressions |
+| `-i` | Experimental C output, with known correctness gaps |
+| `-s` | NASM-style x86-64 assembly text |
+| `-s -O1` | Assembly with local code-generation optimizations |
+| `-s -O3` | Accepted, but currently uses the unoptimized path |
 
-To choose your language, delete the starter files for the other
-language and rename the remaining Makefile to be named `Makefile`. If
-you want to use a language other than Java or Python, you need
-special permission; contact the instructors. Keep in mind that using
-another language will be more work, and you will not be able to
-receive the same level of instructor support. Compilers are
-complicated. Do not try to learn a new
-language at the same time as you learn compilers.
+Both code emitters include `Compilation succeeded` status text in their output;
+the assembly CLI prints that status twice. Output needs those lines removed
+before use as C or assembly source, and may still contain unsupported constructs.
 
+For example, the included `test.jpl` uses a two-dimensional array comprehension
+whose elements are themselves arrays:
 
-Compiling your Compiler
------------------------
+```text
+show array[i : 3, j : 9] [i,j,i]
+```
 
-A compiler is just a normal computer program. Before running it you
-need to compile it. So, once you've chosen a language, compile your
-compiler by running:
+## Implementation
 
-    make compile
+```mermaid
+flowchart LR
+    Source[JPL source] --> Lexer[Lexer]
+    Lexer --> Tokens[Tokens]
+    Tokens --> Parser[Recursive-descent parser]
+    Parser --> AST[AST]
+    AST --> Checker[Semantic and type checks]
+    Checker --> Typed[Type-annotated AST]
+    Typed --> ASM[x86-64 text]
+    Typed --> C[Experimental C text]
+```
 
-This should complete without errors. If you get an error, you likely
-need to install one of `javac`/`java` or `python3`
-(depending on the language you chose), or to add those tools to your
-system PATH. If you're having trouble with this step, please talk
-to your TA or one of your instructors.
+The backends consume the same annotated AST independently. There is no separate
+SSA, control-flow graph, or machine-level intermediate representation.
 
-Note that if you are using Python, `make compile` will do a bit of
-syntax checking but that's about it. If you are familiar with and want
-to use tools like Mypy, feel free to edit your Makefile to do so.
+| Area | Implemented mechanisms |
+| --- | --- |
+| Frontend | Tokenization, comments, operator precedence, explicit AST nodes, S-expression output |
+| Type checking | Primitive types, named structs, ranked arrays, function signatures, name resolution, operator and binding checks |
+| Expressions | Arithmetic, comparisons, Boolean operators, conditionals, calls, array literals, array comprehensions, sum reductions |
+| Assembly | Integer and scalar-double instructions, conditional jumps, stack temporaries, array allocation/indexing, partial function-call lowering |
+| Runtime checks in assembly | Integer zero divisors, array bounds, positive loop bounds, overflow in array allocation size |
+| `-O1` | Immediate constants, multiplication by powers of two, Boolean-to-integer simplification, selected array-address calculations |
 
-Running your Compiler
----------------------
+See [the implementation audit](docs/implementation.md) for source references,
+data layouts, calling-convention details, and limitations. Registers are chosen
+explicitly by the emitter; there is no general register-allocation algorithm.
 
-To test your compiler you need a test program to compile. The file
-`test.jpl` is intended to be a quick scratch-pad for such tests. Run
-your compiler on it with:
+## Examples
 
-    make run
+The [examples directory](examples) contains scalar function calls, image
+construction, and image-filter programs, together with existing PNG assets.
 
-Of course, longer-term you'll want to save test files and run the
-regularly to avoid regressions. You can change the name of the test
-file like so:
+| Source | Demonstrates in the JPL frontend |
+| --- | --- |
+| [subtract.jpl](examples/subtract.jpl) | Floating-point arguments and return values |
+| [red.jpl](examples/red.jpl) | Array comprehension and `rgba` construction |
+| [gradient.jpl](examples/gradient.jpl) | Coordinate arithmetic and numeric conversions |
+| [circle.jpl](examples/circle.jpl) | `sqrt`, comparisons, and a conditional expression |
+| [invert.jpl](examples/invert.jpl) | Image input and struct field access |
+| [sepia.jpl](examples/sepia.jpl) | Channel arithmetic and clamping |
+| [blur.jpl](examples/blur.jpl) | Neighborhood indexing and conditional accumulation |
 
-    make run TEST=something.jpl
+![Existing gradient image included with the examples](examples/gradient.png)
 
-We will use this same functionality to grade your assignments.
+This is an existing repository asset, not an image regenerated by the current
+checks. All eight JPL files, including `test.jpl`, pass the frontend checks.
+The image examples are not verified end-to-end demos: assembly generation skips
+`time` and `write image`, and struct expression lowering is incomplete. Image
+paths such as `sample.png` are relative to the native program's working directory.
 
-Github Actions
---------------
+## Local checks
 
-Every time you push to this repository, it will compile your program
-and then auto-grade the current homework assignment. The auto-grader
-will roll over to the next week's assignment on Monday.
+```sh
+python -m unittest discover -s tests -v
+```
 
-In general, you can feel free to rename files and move them around,
-but the auto-grader works via Github Actions, which are configured in
-the `.github` folder. Do not edit any file in that folder. You will
-fail the assignment! Also do not create a folder called `grader`, that
-will break the autograder.
+The suite exercises the frontend on every included JPL file, rejects selected
+invalid programs, checks scalar-function assembly emission, and verifies that
+neighboring `.expected` files cannot override source compilation. It does not
+validate native execution or general backend correctness.
 
-Github actions will email you every time you push, if you fail a test.
-This will be most times you push, since "failing a test" just means
-you haven't finished an assignment. That will be _very_ annoying. We recommend
-[turning this off][notification].
+With GNU Make available:
 
-[notification]: https://docs.github.com/en/account-and-profile/managing-subscriptions-and-notifications-on-github/setting-up-notifications/about-notifications
+```sh
+make compile
+make test
+make run TEST=examples/subtract.jpl FLAGS=-s
+make run TEST=test.jpl FLAGS=-t PYTHON=python
+```
+
+`make compile` checks Python syntax in all compiler and test modules. `make clean`
+removes root-level `*.out` files and Python caches in the root and `tests/`; it
+requires a POSIX-compatible shell. CI runs syntax checks and the local suite on
+Ubuntu 24.04 without downloading a course grader or runtime.
+
+## Runtime and current limits
+
+Native execution requires a compatible external JPL runtime. Its source, header,
+allocator, image I/O implementation, and entry point are **not included** here.
+The C emitter still includes `rt/runtime.h`; assembly refers to runtime symbols
+such as `_jpl_alloc`, `_show`, and `_read_image`. The optional `rt/` directory
+remains ignored. No assemble/link target is provided.
+
+Known limitations include:
+
+- Assembly skips top-level `print`, `assert`, `time`, and `write image`. A success
+  message therefore does not establish that every command was compiled.
+- Struct construction/access and aggregate function calls are incomplete;
+  `rgba` also has inconsistent size handling.
+- `blur.jpl` fails assembly emission in all three modes; `sepia.jpl` fails with
+  `-O1`. The optimized array-index path has additional correctness gaps.
+- The C emitter truncates fractional literals, mishandles general multidimensional
+  comprehension bodies, emits image writing only as a comment, and omits timing.
+- Diagnostics and declaration validation have gaps. `-O3` adds no optimization.
+
+These limitations are recorded in detail in [docs/implementation.md](docs/implementation.md).

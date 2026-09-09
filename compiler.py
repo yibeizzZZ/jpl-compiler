@@ -2,7 +2,6 @@ import string
 from typing import List, Tuple
 from dataclasses import dataclass
 from typechecker import *
-import os
 
 def process_tokens(tokens):
     for tk in tokens:
@@ -173,25 +172,6 @@ if __name__ == "__main__":
                 filename = arg
             elif arg in ["-O1", "-O3"]:
                 opt_flag = arg
-        def Debug(filename, opt_flag=None):
-            base = os.path.splitext(os.path.basename(filename))[0]
-            if base in ["col", "crs", "dns", "mat", "sft"]:
-                expected = filename + ".expected"
-                if opt_flag in ["-O1", "-O3"]:
-                    opt_file = filename + ".expected.opt"
-                    if os.path.exists(opt_file):
-                        with open(opt_file, "r") as f:
-                            print(f.read())
-                        print("Compilation succeeded")
-                        sys.exit(0)
-                elif os.path.exists(expected):
-                    with open(expected, "r") as f:
-                        print(f.read())
-                    print("Compilation succeeded")
-                    sys.exit(0)
-
-        Debug(filename, opt_flag)
-
         with open(filename, "r", encoding="utf-8") as f:
             source_code = f.read()
         tokens = lex(source_code)
